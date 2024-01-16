@@ -20,7 +20,7 @@ class MyDataset(torch.utils.data.Dataset):
     return len(self.data)
 
   def __getitem__(self, i):
-    return np.expand_dims(self.data[i][0].astype('float32'), axis=0), 10*self.data[i][1]
+    return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(10*self.data[i][1], dtype="float32")
 
 
 def to_img(x):
