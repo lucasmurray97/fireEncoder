@@ -36,7 +36,7 @@ epochs = args.epochs
 sigmoid = args.sigmoid
 net = FireAutoencoder(capacity, input_size, latent_dims, sigmoid)
 net.load_state_dict(torch.load(f'weights/v1/homo_2_sub20x20_latent={latent_dims}_capacity={capacity}_{100}_sigmoid={sigmoid}.pth', map_location=torch.device('cpu')))
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
 
 batch = 16
@@ -47,13 +47,10 @@ test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch, shuff
 full_loader  = torch.utils.data.DataLoader(train_dataset, batch_size=len(train_dataset), shuffle=False)
 
 all_images, all_r = next(iter(full_loader))
-
+net.to(device)
 reward_ann = ANN(latent_dims)
-
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(reward_ann.parameters(), lr = 0.0001)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 reward_ann.to(device)
 training_loss = []
 validation_loss = []
@@ -63,8 +60,9 @@ for epoch in range(epochs):
     epoch_loss = 0
     val_epoch_loss = 0
     for x, r in train_loader:
-        embedding = net.encode(x)
         r = r.to(device)
+        x = x.to(device)
+        embedding = net.encode(x)
         output = reward_ann(embedding)
         loss = criterion(output.squeeze(), r)
         optimizer.zero_grad()
@@ -74,8 +72,9 @@ for epoch in range(epochs):
         n += 1
     
     for y, r in validation_loader:
-        embedding = net.encode(y)
         r = r.to(device)
+        y = y.to(device)
+        embedding = net.encode(y)
         output = reward_ann(embedding)
         val_loss = criterion(output.squeeze(),r)
         optimizer.zero_grad()
@@ -95,7 +94,7 @@ plt.ylabel('Loss')
 plt.savefig(f"ann/v1/loss_func_{latent_dims}_{epochs}_sigmoid={sigmoid}.png")
 
 
-embeddings = net.encode(all_images)
+embeddings = net.encode(all_images.to(device))
 
 with torch.no_grad():
     rewards = reward_ann(embeddings)
@@ -114,7 +113,7 @@ def ann(x):
 res = scipy.optimize.minimize(ann, x0=np.zeros(latent_dims))
 minimum = torch.from_numpy(res.x)
 net.float()
-solution = net.decode(minimum.float().unsqueeze(0))
+solution = net.decode(minimum.float().unsqueeze(0).to(device))
 if sigmoid:
     solution[solution>=0.5] = 1
     solution[solution<=0.5] = 0
@@ -137,7 +136,7 @@ all_images, all_r = next(iter(full_loader))
 
 images, r = next(iter(full_loader))
 output = reward_ann(net.encode(images.to(device)))
-loss = criterion(output.squeeze(),r)
+loss = criterion(output.squeeze(),r.to(device))
 f = open("train_stats/v1/test_losses.txt", "a")
 f.write(str(latent_dims)+','+str(capacity)+','+str(loss.item())+"\n")
 
