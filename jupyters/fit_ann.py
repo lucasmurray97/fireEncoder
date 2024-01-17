@@ -18,7 +18,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import scipy
 import argparse
-
+from tqdm import tqdm
 dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float))
 
@@ -54,7 +54,7 @@ optimizer = torch.optim.Adam(reward_ann.parameters(), lr = 0.0001)
 reward_ann.to(device)
 training_loss = []
 validation_loss = []
-for epoch in range(epochs):
+for epoch in tqdm(range(epochs)):
     n = 0
     m = 0
     epoch_loss = 0
