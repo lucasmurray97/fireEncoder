@@ -12,11 +12,11 @@ import sys
 sys.path.append("..")
 from networks.autoencoder import FireAutoencoder
 from networks.autoencoder_reward import FireAutoencoder_reward
+from networks.ann_reward import ANN
 import matplotlib
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import scipy
-from networks.ann_reward import ANN
 import argparse
 
 dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
