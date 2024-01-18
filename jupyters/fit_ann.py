@@ -23,19 +23,22 @@ dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--latent_dim', type=int, required=True)
+parser.add_argument('--capacity', type=int, required=True)
 parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--lr', type=float, required=True, default = 0.0001)
 args = parser.parse_args()
 # Params
-latent_dims = args.latent_dim
-capacity = latent_dims//2
+capacity = args.capacity
 use_gpu =  True
 input_size = 20
 epochs = args.epochs
 sigmoid = args.sigmoid
-net = FireAutoencoder(capacity, input_size, latent_dims, sigmoid)
-net.load_state_dict(torch.load(f'weights/v1/homo_2_sub20x20_latent={latent_dims}_capacity={capacity}_{100}_sigmoid={sigmoid}.pth', map_location=torch.device('cpu')))
+lr = args.lr
+latent_dims = 256
+train_epochs = 100
+net = FireAutoencoder(latent_dims//2, input_size, latent_dims, sigmoid)
+net.load_state_dict(torch.load(f'weights/v1/homo_2_sub20x20_latent={latent_dims}_capacity={latent_dims//2}_{train_epochs}_sigmoid={sigmoid}.pth', map_location=torch.device('cpu')))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
 
@@ -48,9 +51,9 @@ full_loader  = torch.utils.data.DataLoader(train_dataset, batch_size=len(train_d
 
 all_images, all_r = next(iter(full_loader))
 net.to(device)
-reward_ann = ANN(latent_dims)
+reward_ann = ANN(latent_dims, capacity)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(reward_ann.parameters(), lr = 0.0001)
+optimizer = torch.optim.Adam(reward_ann.parameters(), lr = lr)
 reward_ann.to(device)
 training_loss = []
 validation_loss = []
@@ -91,7 +94,7 @@ plt.plot(training_loss[1:], label='training loss')
 plt.plot(validation_loss[1:], label='validation loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
-plt.savefig(f"ann/v1/loss_func_{latent_dims}_{epochs}_sigmoid={sigmoid}.png")
+plt.savefig(f"ann/v1/loss_func_{capacity}_{epochs}_sigmoid={sigmoid}.png")
 
 
 embeddings = net.encode(all_images.to(device))
@@ -101,11 +104,11 @@ with torch.no_grad():
 plt.ion()
 fig = plt.figure()
 bins = np.arange(-1020, -500, 10)
-plt.hist(rewards.squeeze().numpy(), bins=bins, align='left')
+plt.hist(rewards.squeeze().detach().numpy(), bins=bins, align='left')
 plt.title('Distribución de las recompensas predecidas')
 plt.xlabel('Recompensa')
 plt.ylabel('Frecuencia')
-plt.savefig(f"ann/v1/reward_classes_distr_{latent_dims}_{epochs}_sigmoid={sigmoid}.png.png")
+plt.savefig(f"ann/v1/reward_classes_distr_{capacity}_{epochs}_sigmoid={sigmoid}.png")
 
 def ann(x):
     return reward_ann(torch.from_numpy(x).float()).detach().numpy()
@@ -123,12 +126,12 @@ with torch.no_grad():
     plt.ion()
     fig = plt.figure()
     plt.title('Reconstrucción del mínimo')
-    plt.imshow(solution[0][0].numpy())
+    plt.imshow(solution[0][0].detach().numpy())
     plt.colorbar()
-    plt.savefig(f"ann/v1/minimum_decoding_{latent_dims}_{epochs}_sigmoid={sigmoid}.png")
+    plt.savefig(f"ann/v1/minimum_decoding_{capacity}_{epochs}_sigmoid={sigmoid}.png")
     
 
-path_ = f"./weights/v1/ann_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}.pth"
+path_ = f"./weights/v1/ann_capacity={capacity}_{epochs}_sigmoid={sigmoid}.pth"
 torch.save(reward_ann.state_dict(), path_)
 
 full_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)
@@ -140,5 +143,5 @@ loss = criterion(output.squeeze(),r.to(device))
 f = open("train_stats/v1/test_losses.txt", "a")
 f.write(str(latent_dims)+','+str(capacity)+','+str(loss.item())+"\n")
 
-f = open(f'ann/v1/solution_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}.txt', 'a')
-f.write(str(repr(solution[0][0])))
+f = open(f'ann/v1/solution_capacity={capacity}_{epochs}_sigmoid={sigmoid}.txt', 'a')
+f.write(str(repr(solution[0][0].detach())))
