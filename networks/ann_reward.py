@@ -7,14 +7,14 @@ import torch.nn.functional as F
 import numpy as np
 
 class ANN(nn.Module):
-    def __init__(self, latent_dims):
+    def __init__(self, latent_dims, capacity):
         super(ANN, self).__init__()
    
         # Reward predictor:
-        self.fc_r1 = nn.Linear(in_features=latent_dims, out_features=128)
-        self.fc_r2 = nn.Linear(in_features=128, out_features=64)
-        self.fc_r3 = nn.Linear(in_features=64, out_features=32)
-        self.fc_r4 = nn.Linear(in_features=32, out_features=1)
+        self.fc_r1 = nn.Linear(in_features=latent_dims, out_features=capacity)
+        self.fc_r2 = nn.Linear(in_features=capacity, out_features=capacity//2)
+        self.fc_r3 = nn.Linear(in_features=capacity//2, out_features=capacity//4)
+        self.fc_r4 = nn.Linear(in_features=capacity//4, out_features=1)
 
     
     def forward(self, x):
