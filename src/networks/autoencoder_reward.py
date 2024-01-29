@@ -19,6 +19,8 @@ class FireAutoencoder_reward(nn.Module):
         self.dim_2 = int((self.dim_1 - kernel_size + 2*padding)/2 + 1)
         self.is_sigmoid = sigmoid
         self.scale = scale
+        self.last_layer1 = None
+        self.last_layer2 = None
         # Encoder layers:
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
         self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
@@ -30,6 +32,7 @@ class FireAutoencoder_reward(nn.Module):
         self.conv2_2 = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
         if self.is_sigmoid:
             self.sigmoid = nn.Sigmoid()
+        self.scale = nn.Sigmoid()
 
         # Reward predictor:
         self.fc_r1 = nn.Linear(in_features=latent_dims, out_features=128)
@@ -44,8 +47,8 @@ class FireAutoencoder_reward(nn.Module):
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
 
         # Loss weigthts:
-        self.lambda_1 = nn.parameter.Parameter(torch.Tensor([1]))
-        self.lambda_2 = nn.parameter.Parameter(torch.Tensor([1]))
+        self.sigma_1 = nn.parameter.Parameter(torch.Tensor([1]))
+        self.sigma_2 = nn.parameter.Parameter(torch.Tensor([1]))
         self.epsilon = 1e-8
         # Losses holders:
         self.training_loss = []
@@ -84,6 +87,7 @@ class FireAutoencoder_reward(nn.Module):
         mat = h.view(x.size(0), self.c*2, self.dim_2, self.dim_2)
         u1 = F.relu(self.conv1_2(mat))
         u2 = self.sigmoid(self.conv2_2(u1)) if self.is_sigmoid else F.relu(self.conv2_2(u1))
+        self.last_layer1 = u2
         return u2
     
     def predict_reward(self, x):
@@ -91,24 +95,28 @@ class FireAutoencoder_reward(nn.Module):
         h2 = F.relu(self.fc_r2(h1))
         h3 = F.relu(self.fc_r3(h2))
         reward = self.fc_r4(h3)
-        return reward
+        self.last_layer2 = reward
+        return self.scale(reward)
 
     def forward(self, x, r):
         embedding = self.encode(x)
         return self.decode(embedding), self.predict_reward(embedding)
 
     def loss(self, output, x, r):
-        # print((1/(2*self.lambda_1**2)), (1/(2*self.lambda_2**2)))
         output_x = output[0]
         output_r = output[1]
         loss_1 = self.criterion_1(output_x, x)
         loss_2 = self.criterion_2(output_r.squeeze(), r)
-        # print(loss_1*(1/(self.lambda_1**2 + self.epsilon)), loss_2*(1/(self.lambda_2**2 + self.epsilon)))
         self.reconstruction_epoch_loss += loss_1.item()
         self.regression_epoch_loss += loss_2.item()
-        loss = loss_1*(1/(2*self.lambda_1**2)) + loss_2*(1/(2*self.lambda_1**2)) + torch.log(1 + self.lambda_1**2) + torch.log(1 + self.lambda_2**2)
+        coef_1 = 1/(2*(self.sigma_1)**2)
+        coef_2 = 1/(2*(self.sigma_2)**2)
+        print(coef_1.item(), coef_2.item(), self.sigma_1.item(), self.sigma_2.item())
+        loss = loss_1*coef_1 + loss_2*coef_2 + torch.log(self.sigma_1) + torch.log(self.sigma_2)
         self.epoch_loss += loss.item()
         return loss
+    
+    
     
     def val_loss(self, output, x, r):
         output_x = output[0]
@@ -117,9 +125,20 @@ class FireAutoencoder_reward(nn.Module):
         loss_2 = self.criterion_2(output_r.squeeze(), r)
         self.val_reconstruction_epoch_loss += loss_1.item()
         self.val_regression_epoch_loss += loss_2.item()
-        loss = loss_1*(1/(2*self.lambda_1**2)) + loss_2*(1/(2*self.lambda_2**2)) + torch.log(1 + self.lambda_1**2) + torch.log(1 + self.lambda_2**2)
+        coef_1 = 1/(2*(self.sigma_1)**2)
+        coef_2 = 1/(2*(self.sigma_2)**2)
+        # print(coef_1.item(), coef_2.item(), self.sigma_1.item(), self.sigma_2.item())
+        loss = loss_1*coef_1 + loss_2*coef_2 + torch.log(self.sigma_1) + torch.log(self.sigma_2)
         self.val_epoch_loss += loss.item()
         return loss
+    
+    def show_grads(self):
+        grads_1 = 0
+        for i in self.fc_r4.parameters():
+            grads_1 += i.grad.sum()
+        grads_2 = 0
+        for i in self.conv2_2.parameters():
+            grads_2 += i.grad.sum()
 
     def reset_losses(self):
         self.training_loss.append(self.epoch_loss/self.n)

@@ -36,7 +36,7 @@ network = args.network
 lr = args.lr
 # Dataset is loaded
 dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
-                             tform=lambda x: torch.from_numpy(x, dtype=torch.float))
+                             tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=True)
 
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
 
@@ -56,12 +56,14 @@ net.to(net.device)
 early_stopper = EarlyStopper(patience=5, min_delta=0)
 for epoch in tqdm(range(epochs)):
     for x, r_x in train_loader:
+        # print(r_x)
+        optimizer.zero_grad()
         x = x.to(net.device)
         r_x = r_x.to(net.device)
         output = net(x, r_x)
         loss = net.loss(output, x, r_x)
-        optimizer.zero_grad()
-        loss.backward()
+        loss.backward()   
+        # net.show_grads()
         optimizer.step()
         net.n+=1
 

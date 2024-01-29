@@ -9,20 +9,37 @@ import pickle
 from matplotlib import pyplot as plt
 
 class MyDataset(torch.utils.data.Dataset):
-  def __init__(self, root, tform=None):
+  def __init__(self, root, tform=None, normalize = False):
     super(MyDataset, self).__init__()
     self.root = root
     self.tform = tform
     file = open(root, 'rb')
     self.data = pickle.load(file)
+    self.normalize = normalize
+    self.rewards = []
+    for i in range(len(self.data)):
+       self.rewards.append(10*self.data[i][1])
+    self.max_reward = max(self.rewards)
+    self.min_reward = min(self.rewards)
 
   def __len__(self):
     return len(self.data)
 
   def __getitem__(self, i):
-    return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(10*self.data[i][1], dtype="float32")
-
-
+    if not self.normalize:
+      return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(self.rewards[i], dtype="float32")
+    else:
+      return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(self.scale(self.rewards[i]), dtype="float32")
+  
+  def scale(self, i):
+     scaled = (i - self.min_reward)/(self.max_reward - self.min_reward)
+     return scaled
+  
+  def reconstruct(self, normalized_rewards):
+    reconstructed = []
+    for i in normalized_rewards:
+       reconstructed.append(i*(self.max_reward - self.min_reward) + self.min_reward)
+    return reconstructed
 def to_img(x):
     x = x.clamp(0, 1)
     return x
