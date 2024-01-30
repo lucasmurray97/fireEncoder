@@ -74,8 +74,6 @@ class FireAutoencoder_reward(nn.Module):
             self.criterion_1 = nn.MSELoss()
         self.criterion_2 = nn.MSELoss()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.rec_last_epoch_loss = torch.Tensor([1]).to(self.device)
-        self.reg_last_epoch_loss = torch.Tensor([1]).to(self.device)
 
     def encode(self, x):
         u1 = F.relu(self.conv1(x))
@@ -110,14 +108,11 @@ class FireAutoencoder_reward(nn.Module):
         output_r = output[1]
         loss_1 = self.criterion_1(output_x, x)
         loss_2 = self.criterion_2(output_r.squeeze(), r)
-        coef_1 = torch.exp(-self.rec_last_epoch_loss/self.T)
-        coef_2 = torch.exp(-self.reg_last_epoch_loss/self.T)
-        loss = loss_1*coef_1 + loss_2*coef_2
-        print(coef_1, coef_2)
-        return loss_1, loss_2, loss, coef_1, coef_2
+        loss = torch.exp(loss_1/self.T) + torch.exp(loss_2/self.T)
+        return loss_1, loss_2, loss
     
     def loss(self, output, x, r):
-        loss_1, loss_2, loss, _, _ = self.compute_loss(output, x, r)
+        loss_1, loss_2, loss = self.compute_loss(output, x, r)
         self.reconstruction_epoch_loss += loss_1.item()
         self.regression_epoch_loss += loss_2.item()
         self.epoch_loss += loss.item()
@@ -125,7 +120,7 @@ class FireAutoencoder_reward(nn.Module):
 
     
     def val_loss(self, output, x, r):
-        loss_1, loss_2, loss, _, _ = self.compute_loss(output, x, r)
+        loss_1, loss_2, loss = self.compute_loss(output, x, r)
         self.val_reconstruction_epoch_loss += loss_1.item()
         self.val_regression_epoch_loss += loss_2.item()
         self.val_epoch_loss += loss.item()
@@ -146,8 +141,6 @@ class FireAutoencoder_reward(nn.Module):
         self.reconstruction_validation_loss.append(self.val_reconstruction_epoch_loss/self.m)
         self.regression_training_loss.append(self.regression_epoch_loss/self.n)
         self.regression_validation_loss.append(self.val_regression_epoch_loss/self.m)
-        self.rec_last_epoch_loss = torch.Tensor([self.reconstruction_epoch_loss]).to(self.device)
-        self.reg_last_epoch_loss = torch.Tensor([self.regression_epoch_loss]).to(self.device)
         self.epoch_loss = 0
         self.val_epoch_loss = 0
         self.reconstruction_epoch_loss = 0
