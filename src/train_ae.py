@@ -23,6 +23,7 @@ parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--network', type=str, default="AE")
 parser.add_argument('--lr', type=float, default="0.0001")
+parser.add_argument('--temperature', type=int, required=True, default = 100)
 
 args = parser.parse_args()
 # Params
@@ -34,6 +35,7 @@ epochs = args.epochs
 sigmoid = args.sigmoid
 network = args.network
 lr = args.lr
+temperature = args.temperature
 # Dataset is loaded
 dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=True)
@@ -45,7 +47,7 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature)
 optimizer = torch.optim.Adam(net.parameters(), lr = lr)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
@@ -53,7 +55,7 @@ validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=1
 test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 # Training Loop
 net.to(net.device)
-early_stopper = EarlyStopper(patience=5, min_delta=0)
+early_stopper = EarlyStopper(patience=5, min_delta=0.01)
 for epoch in tqdm(range(epochs)):
     for x, r_x in train_loader:
         # print(r_x)
@@ -73,6 +75,7 @@ for epoch in tqdm(range(epochs)):
         output = net(y, r_y)
         val_loss = net.val_loss(output,y, r_y)
         net.m+=1
+    print(net.val_epoch_loss)
     if early_stopper.early_stop(net.val_epoch_loss):             
       print("Early stoppage at epoch:", epoch)
       break

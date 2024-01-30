@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder_reward(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5):
+    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature = 10):
         super(FireAutoencoder_reward, self).__init__()
         self.c = capacity
         self.name = "AE_Reward"
@@ -65,6 +65,7 @@ class FireAutoencoder_reward(nn.Module):
         self.val_reconstruction_epoch_loss = 0
         self.regression_epoch_loss = 0
         self.val_regression_epoch_loss = 0
+        self.T = temperature
 
         if self.is_sigmoid:
             self.sigmoid = nn.Sigmoid()
@@ -72,7 +73,9 @@ class FireAutoencoder_reward(nn.Module):
         else:
             self.criterion_1 = nn.MSELoss()
         self.criterion_2 = nn.MSELoss()
-        self.device = device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.rec_last_epoch_loss = torch.Tensor([1]).to(self.device)
+        self.reg_last_epoch_loss = torch.Tensor([1]).to(self.device)
 
     def encode(self, x):
         u1 = F.relu(self.conv1(x))
@@ -101,34 +104,30 @@ class FireAutoencoder_reward(nn.Module):
     def forward(self, x, r):
         embedding = self.encode(x)
         return self.decode(embedding), self.predict_reward(embedding)
-
-    def loss(self, output, x, r):
+    
+    def compute_loss(self, output, x, r):
         output_x = output[0]
         output_r = output[1]
         loss_1 = self.criterion_1(output_x, x)
         loss_2 = self.criterion_2(output_r.squeeze(), r)
+        coef_1 = torch.exp(-self.rec_last_epoch_loss/self.T)
+        coef_2 = torch.exp(-self.reg_last_epoch_loss/self.T)
+        loss = loss_1*coef_1 + loss_2*coef_2
+        print(coef_1, coef_2)
+        return loss_1, loss_2, loss, coef_1, coef_2
+    
+    def loss(self, output, x, r):
+        loss_1, loss_2, loss, _, _ = self.compute_loss(output, x, r)
         self.reconstruction_epoch_loss += loss_1.item()
         self.regression_epoch_loss += loss_2.item()
-        coef_1 = 1/(2*(self.sigma_1)**2)
-        coef_2 = 1/(2*(self.sigma_2)**2)
-        print(coef_1.item(), coef_2.item(), self.sigma_1.item(), self.sigma_2.item())
-        loss = loss_1*coef_1 + loss_2*coef_2 + torch.log(self.sigma_1) + torch.log(self.sigma_2)
         self.epoch_loss += loss.item()
         return loss
-    
-    
+
     
     def val_loss(self, output, x, r):
-        output_x = output[0]
-        output_r = output[1]
-        loss_1 = self.criterion_1(output_x, x)
-        loss_2 = self.criterion_2(output_r.squeeze(), r)
+        loss_1, loss_2, loss, _, _ = self.compute_loss(output, x, r)
         self.val_reconstruction_epoch_loss += loss_1.item()
         self.val_regression_epoch_loss += loss_2.item()
-        coef_1 = 1/(2*(self.sigma_1)**2)
-        coef_2 = 1/(2*(self.sigma_2)**2)
-        # print(coef_1.item(), coef_2.item(), self.sigma_1.item(), self.sigma_2.item())
-        loss = loss_1*coef_1 + loss_2*coef_2 + torch.log(self.sigma_1) + torch.log(self.sigma_2)
         self.val_epoch_loss += loss.item()
         return loss
     
@@ -147,6 +146,8 @@ class FireAutoencoder_reward(nn.Module):
         self.reconstruction_validation_loss.append(self.val_reconstruction_epoch_loss/self.m)
         self.regression_training_loss.append(self.regression_epoch_loss/self.n)
         self.regression_validation_loss.append(self.val_regression_epoch_loss/self.m)
+        self.rec_last_epoch_loss = torch.Tensor([self.reconstruction_epoch_loss]).to(self.device)
+        self.reg_last_epoch_loss = torch.Tensor([self.regression_epoch_loss]).to(self.device)
         self.epoch_loss = 0
         self.val_epoch_loss = 0
         self.reconstruction_epoch_loss = 0
@@ -165,7 +166,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_{self.T}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -174,7 +175,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_{self.T}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -183,7 +184,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_{self.T}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
