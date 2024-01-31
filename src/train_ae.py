@@ -22,8 +22,10 @@ parser.add_argument('--latent_dim', type=int, required=True)
 parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--network', type=str, default="AE")
-parser.add_argument('--lr', type=float, default="0.0001")
-parser.add_argument('--temperature', type=int, required=True, default = 100)
+parser.add_argument('--lr', type=float, default=0.0001)
+parser.add_argument('--temperature', type=int, default = 100)
+parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument('--weight_decay', type=float, default=0)
 
 args = parser.parse_args()
 # Params
@@ -36,9 +38,11 @@ sigmoid = args.sigmoid
 network = args.network
 lr = args.lr
 temperature = args.temperature
+normalize = args.normalize
+weight_decay = args.weight_decay
 # Dataset is loaded
 dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
-                             tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=True)
+                             tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
 
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
 
@@ -47,8 +51,8 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr = lr)
-optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay=0.005)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr = lr, normalize = normalize)
+optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay=weight_decay)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
@@ -75,7 +79,6 @@ for epoch in tqdm(range(epochs)):
         output = net(y, r_y)
         val_loss = net.val_loss(output,y, r_y)
         net.m+=1
-    print(net.val_epoch_loss)
     if early_stopper.early_stop(net.val_epoch_loss):             
       print("Early stoppage at epoch:", epoch)
       break
