@@ -47,8 +47,8 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature)
-optimizer = torch.optim.Adam(net.parameters(), lr = lr)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr = lr)
+optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay=0.005)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
