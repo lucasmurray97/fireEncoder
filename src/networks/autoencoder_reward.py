@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder_reward(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature = 10, lr = 0.0001, normalize = False):
+    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0):
         super(FireAutoencoder_reward, self).__init__()
         self.c = capacity
         self.name = "AE_Reward"
@@ -19,17 +19,30 @@ class FireAutoencoder_reward(nn.Module):
         self.dim_2 = int((self.dim_1 - kernel_size + 2*padding)/2 + 1)
         self.is_sigmoid = sigmoid
         self.scale = scale
-        self.lr = lr
+        self.lr1 = lr1
+        self.lr2 = lr2
+        self.lr3 = lr3
         self.normalize = normalize
+        self.weight_decay = weight_decay
+        # Grouping parameters for different optimizers
+        self.encoder_params = []
+        self.decoder_params = []
+        self.regression_params = []
+
         # Encoder layers:
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
         self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
         self.fc = nn.Linear(in_features=latent_dims*(self.dim_2**2), out_features = latent_dims)
-
+        self.encoder_params.extend(self.conv1.parameters())
+        self.encoder_params.extend(self.conv2.parameters())
+        self.encoder_params.extend(self.fc.parameters())
         # Decoder layers:
         self.fc_2 = nn.Linear(in_features=latent_dims, out_features=latent_dims*(self.dim_2**2))
         self.conv1_2 = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv2_2 = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.decoder_params.extend(self.conv1_2.parameters())
+        self.decoder_params.extend(self.conv2_2.parameters())
+        self.decoder_params.extend(self.fc_2.parameters())
         if self.is_sigmoid:
             self.sigmoid = nn.Sigmoid()
         self.scale = nn.Sigmoid()
@@ -39,12 +52,24 @@ class FireAutoencoder_reward(nn.Module):
         self.fc_r2 = nn.Linear(in_features=128, out_features=64)
         self.fc_r3 = nn.Linear(in_features=64, out_features=32)
         self.fc_r4 = nn.Linear(in_features=32, out_features=1)
-        
+        self.regression_params.extend(self.fc_r1.parameters())
+        self.regression_params.extend(self.fc_r2.parameters())
+        self.regression_params.extend(self.fc_r3.parameters())
+        self.regression_params.extend(self.fc_r4.parameters())
+
         # Inicialización de parámetros:
         nn.init.kaiming_uniform_(self.conv1.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
+
+        # We create optimizers for each task:
+         # We create optimizers for each task
+        self.optimizer1 = torch.optim.Adam(self.encoder_params, lr = lr1, weight_decay=self.weight_decay)
+         # We create optimizers for each task
+        self.optimizer2 = torch.optim.Adam(self.decoder_params, lr = lr2, weight_decay=self.weight_decay)
+         # We create optimizers for each task
+        self.optimizer3 = torch.optim.Adam(self.regression_params, lr = lr3, weight_decay=self.weight_decay)
 
         # Loss weigthts:
         self.sigma_1 = nn.parameter.Parameter(torch.Tensor([1]))
@@ -126,6 +151,16 @@ class FireAutoencoder_reward(nn.Module):
         self.val_epoch_loss += loss.item()
         return loss
     
+    def step(self):
+        self.optimizer1.step()
+        self.optimizer2.step()
+        self.optimizer3.step()
+
+    def zero_grad(self):
+        self.optimizer1.zero_grad()
+        self.optimizer2.zero_grad()
+        self.optimizer3.zero_grad()
+    
     def show_grads(self):
         grads_1 = 0
         for i in self.fc_r4.parameters():
@@ -159,7 +194,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr={self.lr}_normalize={self.normalize}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -168,7 +203,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr={self.lr}_normalize={self.normalize}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -177,7 +212,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr={self.lr}_normalize={self.normalize}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)

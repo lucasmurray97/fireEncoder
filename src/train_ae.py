@@ -22,7 +22,9 @@ parser.add_argument('--latent_dim', type=int, required=True)
 parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--network', type=str, default="AE")
-parser.add_argument('--lr', type=float, default=0.0001)
+parser.add_argument('--lr1', type=float, default=0.0001)
+parser.add_argument('--lr2', type=float, default=0.0001)
+parser.add_argument('--lr3', type=float, default=0.0001)
 parser.add_argument('--temperature', type=int, default = 100)
 parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument('--weight_decay', type=float, default=0)
@@ -36,7 +38,9 @@ input_size = 20
 epochs = args.epochs
 sigmoid = args.sigmoid
 network = args.network
-lr = args.lr
+lr1 = args.lr1
+lr2 = args.lr2
+lr3 = args.lr3
 temperature = args.temperature
 normalize = args.normalize
 weight_decay = args.weight_decay
@@ -51,8 +55,7 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr = lr, normalize = normalize)
-optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay=weight_decay)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
@@ -63,14 +66,14 @@ early_stopper = EarlyStopper(patience=5, min_delta=0.01)
 for epoch in tqdm(range(epochs)):
     for x, r_x in train_loader:
         # print(r_x)
-        optimizer.zero_grad()
+        net.zero_grad()
         x = x.to(net.device)
         r_x = r_x.to(net.device)
         output = net(x, r_x)
         loss = net.loss(output, x, r_x)
         loss.backward()   
         # net.show_grads()
-        optimizer.step()
+        net.step()
         net.n+=1
 
     for y, r_y in validation_loader:
