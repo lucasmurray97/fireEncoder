@@ -122,7 +122,7 @@ class FireAutoencoder_reward(nn.Module):
         h3 = F.relu(self.fc_r3(h2))
         reward = self.fc_r4(h3)
         self.last_layer2 = reward
-        return self.scale(reward)
+        return self.scale(reward) if self.normalize else reward
 
     def forward(self, x, r):
         embedding = self.encode(x)

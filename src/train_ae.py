@@ -26,7 +26,7 @@ parser.add_argument('--lr1', type=float, default=0.0001)
 parser.add_argument('--lr2', type=float, default=0.0001)
 parser.add_argument('--lr3', type=float, default=0.0001)
 parser.add_argument('--temperature', type=float, default = 100)
-parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--weight_decay', type=float, default=0)
 
 args = parser.parse_args()
