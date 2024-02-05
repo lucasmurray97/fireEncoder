@@ -25,7 +25,8 @@ parser.add_argument('--network', type=str, default="AE")
 parser.add_argument('--lr1', type=float, default=0.0001)
 parser.add_argument('--lr2', type=float, default=0.0001)
 parser.add_argument('--lr3', type=float, default=0.0001)
-parser.add_argument('--temperature', type=float, default = 100)
+parser.add_argument('--temperature_1', type=float, default = 100)
+parser.add_argument('--temperature_2', type=float, default = 100)
 parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--weight_decay', type=float, default=0)
 
@@ -41,7 +42,8 @@ network = args.network
 lr1 = args.lr1
 lr2 = args.lr2
 lr3 = args.lr3
-temperature = args.temperature
+temperature_1 = args.temperature_1
+temperature_2 = args.temperature_2
 normalize = args.normalize
 weight_decay = args.weight_decay
 # Dataset is loaded
@@ -55,7 +57,7 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature=temperature, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature_1=temperature_1, temperature_2=temperature_2, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
@@ -91,7 +93,7 @@ net.plot_loss(epochs)
 
 path_ = f"./weights/{network}/homo_2_sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}.pth"
 torch.save(net.state_dict(), path_)
-
+net.eval()
 full_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)
 images, r = next(iter(full_loader))
 output = net(images.to("cpu"), r.to("cpu"))

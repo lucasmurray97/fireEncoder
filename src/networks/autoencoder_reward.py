@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder_reward(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0):
+    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature_1 = 10, temperature_2 = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0):
         super(FireAutoencoder_reward, self).__init__()
         self.c = capacity
         self.name = "AE_Reward"
@@ -31,14 +31,21 @@ class FireAutoencoder_reward(nn.Module):
 
         # Encoder layers:
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
+        self.bn_1 = nn.BatchNorm2d(self.c)
         self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
+        self.bn_2 = nn.BatchNorm2d(self.c*2)
+        self.dp1 = nn.Dropout(p=0.2)
         self.fc = nn.Linear(in_features=latent_dims*(self.dim_2**2), out_features = latent_dims)
+        self.bn_3 = nn.BatchNorm1d(self.latent_dims)
         self.encoder_params.extend(self.conv1.parameters())
         self.encoder_params.extend(self.conv2.parameters())
         self.encoder_params.extend(self.fc.parameters())
         # Decoder layers:
         self.fc_2 = nn.Linear(in_features=latent_dims, out_features=latent_dims*(self.dim_2**2))
+        self.bn_1_2 = nn.BatchNorm1d(latent_dims*(self.dim_2**2))
         self.conv1_2 = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.bn_2_2 = nn.BatchNorm2d(self.c)
+        self.dp2 = nn.Dropout(p=0.2)
         self.conv2_2 = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
         self.decoder_params.extend(self.conv1_2.parameters())
         self.decoder_params.extend(self.conv2_2.parameters())
@@ -49,8 +56,12 @@ class FireAutoencoder_reward(nn.Module):
 
         # Reward predictor:
         self.fc_r1 = nn.Linear(in_features=latent_dims, out_features=128)
+        self.bn_r1 = nn.BatchNorm1d(128)
         self.fc_r2 = nn.Linear(in_features=128, out_features=64)
+        self.bn_r2 = nn.BatchNorm1d(64)
+        self.dpr1 = nn.Dropout(p=0.2)
         self.fc_r3 = nn.Linear(in_features=64, out_features=32)
+        self.bn_r3 = nn.BatchNorm1d(32)
         self.fc_r4 = nn.Linear(in_features=32, out_features=1)
         self.regression_params.extend(self.fc_r1.parameters())
         self.regression_params.extend(self.fc_r2.parameters())
@@ -90,7 +101,8 @@ class FireAutoencoder_reward(nn.Module):
         self.val_reconstruction_epoch_loss = 0
         self.regression_epoch_loss = 0
         self.val_regression_epoch_loss = 0
-        self.T = temperature
+        self.T1 = temperature_1
+        self.T2 = temperature_2
 
         if self.is_sigmoid:
             self.sigmoid = nn.Sigmoid()
@@ -101,25 +113,25 @@ class FireAutoencoder_reward(nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def encode(self, x):
-        u1 = F.relu(self.conv1(x))
-        u2 = F.relu(self.conv2(u1))
+        u1 = self.bn_1(F.relu(self.conv1(x)))
+        u2 = self.dp1(self.bn_2(F.relu(self.conv2(u1))))
         flat = u2.view(x.size(0), -1)
-        output = self.fc(flat)
+        output = self.bn_3(F.relu(self.fc(flat)))
         return output
 
     
     def decode(self, x):
-        h = self.fc_2(x)
+        h = self.bn_1_2(F.relu(self.fc_2(x)))
         mat = h.view(x.size(0), self.c*2, self.dim_2, self.dim_2)
-        u1 = F.relu(self.conv1_2(mat))
+        u1 = self.dp2(self.bn_2_2(F.relu(self.conv1_2(mat))))
         u2 = self.sigmoid(self.conv2_2(u1)) if self.is_sigmoid else F.relu(self.conv2_2(u1))
         self.last_layer1 = u2
         return u2
     
     def predict_reward(self, x):
-        h1 = F.relu(self.fc_r1(x))
-        h2 = F.relu(self.fc_r2(h1))
-        h3 = F.relu(self.fc_r3(h2))
+        h1 = self.bn_r1(F.relu(self.fc_r1(x)))
+        h2 = self.dpr1(self.bn_r2(F.relu(self.fc_r2(h1))))
+        h3 = self.bn_r3(F.relu(self.fc_r3(h2)))
         reward = self.fc_r4(h3)
         self.last_layer2 = reward
         return self.scale(reward) if self.normalize else reward
@@ -133,7 +145,7 @@ class FireAutoencoder_reward(nn.Module):
         output_r = output[1]
         loss_1 = self.criterion_1(output_x, x)
         loss_2 = self.criterion_2(output_r.squeeze(), r)
-        loss = torch.exp(loss_1/self.T) + torch.exp(loss_2/self.T)
+        loss = torch.exp(loss_1/self.T1) + torch.exp(loss_2/self.T2)
         return loss_1, loss_2, loss
     
     def loss(self, output, x, r):
@@ -194,7 +206,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -203,7 +215,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -212,7 +224,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T={self.T}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
