@@ -7,9 +7,10 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False):
+    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, instance = "homo_2"):
         super(FireAutoencoder, self).__init__()
         self.name = "AE"
+        self.instance= instance
         self.latent_dims = latent_dims
         self.c = capacity
         kernel_size = 4
@@ -92,7 +93,7 @@ class FireAutoencoder(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
+        plt.savefig(f"experiments/train_stats/{self.instance}/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)

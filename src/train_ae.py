@@ -29,6 +29,7 @@ parser.add_argument('--temperature_1', type=float, default = 100)
 parser.add_argument('--temperature_2', type=float, default = 100)
 parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--weight_decay', type=float, default=0)
+parser.add_argument('--instance', type=str, default="homo_2")
 
 args = parser.parse_args()
 # Params
@@ -46,8 +47,10 @@ temperature_1 = args.temperature_1
 temperature_2 = args.temperature_2
 normalize = args.normalize
 weight_decay = args.weight_decay
+instance = args.instance
+
 # Dataset is loaded
-dataset = MyDataset(root='../data/complete_random/homo_2/Sub20x20_full_grid_.pkl',
+dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
 
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
@@ -57,7 +60,7 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature_1=temperature_1, temperature_2=temperature_2, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay)
+net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature_1=temperature_1, temperature_2=temperature_2, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay, instance=instance)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
@@ -91,12 +94,12 @@ for epoch in tqdm(range(epochs)):
     
 net.plot_loss(epochs)
 
-path_ = f"./weights/{network}/homo_2_sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}.pth"
+path_ = f"./weights/{instance}/{network}/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1={temperature_1}_T2={temperature_2}_lr1={lr1}_lr2={lr2}_lr3={lr3}_normalize={normalize}_weight_decay={weight_decay}.pth"
 torch.save(net.state_dict(), path_)
 net.eval()
 full_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)
 images, r = next(iter(full_loader))
 output = net(images.to("cpu"), r.to("cpu"))
 loss = net.calc_test_loss(output, images, r)
-f = open(f"experiments/train_stats/{network}/test_losses.txt", "a")
+f = open(f"experiments/{instance}/train_stats/{network}/test_losses.txt", "a")
 f.write(str(latent_dims)+','+str(capacity)+','+str(loss.item())+"\n")

@@ -7,10 +7,11 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder_reward(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature_1 = 10, temperature_2 = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0):
+    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature_1 = 10, temperature_2 = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0, instance = "homo_2"):
         super(FireAutoencoder_reward, self).__init__()
         self.c = capacity
         self.name = "AE_Reward"
+        self.instance = instance
         self.latent_dims = latent_dims
         kernel_size = 4
         stride = 2
@@ -206,7 +207,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -215,7 +216,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/reconstruction_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/reconstruction_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -224,7 +225,7 @@ class FireAutoencoder_reward(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/regression_loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/regression_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_T1={self.T1}_T2={self.T2}_lr1={self.lr1}_lr2={self.lr2}_lr3={self.lr3}_normalize={self.normalize}_weight_decay={self.weight_decay}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
