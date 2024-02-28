@@ -7,24 +7,27 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder_reward(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False, scale = 10e-5, temperature_1 = 10, temperature_2 = 10, lr1 = 0.0001, lr2 = 0.0001, lr3 = 0.0001, normalize = False, weight_decay = 0, instance = "homo_2"):
+    def __init__(self, params):
         super(FireAutoencoder_reward, self).__init__()
-        self.c = capacity
+        self.c = params["capacity"]
         self.name = "AE_Reward"
-        self.instance = instance
-        self.latent_dims = latent_dims
+        self.instance = params["instance"]
+        self.latent_dims = params["latent_dims"]
         kernel_size = 4
         stride = 2
         padding = 1
+        input_size = params["input_size"]
         self.dim_1 = int((input_size - kernel_size + 2*padding)/2 + 1)
         self.dim_2 = int((self.dim_1 - kernel_size + 2*padding)/2 + 1)
-        self.is_sigmoid = sigmoid
-        self.scale = scale
-        self.lr1 = lr1
-        self.lr2 = lr2
-        self.lr3 = lr3
-        self.normalize = normalize
-        self.weight_decay = weight_decay
+        self.is_sigmoid = params["sigmoid"]
+        self.scale = params["scale"]
+        self.lr1 = params["lr1"]
+        self.lr2 = params["lr2"]
+        self.lr3 = params["lr3"]
+        self.normalize = params["normalize"]
+        self.weight_decay = params["weight_decay"]
+        self.temperature_1 = params["temperature_1"]
+        self.temperature_2 = params["temperature_2"]
         # Grouping parameters for different optimizers
         self.encoder_params = []
         self.decoder_params = []
@@ -36,14 +39,14 @@ class FireAutoencoder_reward(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
         self.bn_2 = nn.BatchNorm2d(self.c*2)
         self.dp1 = nn.Dropout(p=0.2)
-        self.fc = nn.Linear(in_features=latent_dims*(self.dim_2**2), out_features = latent_dims)
+        self.fc = nn.Linear(in_features=self.latent_dims*(self.dim_2**2), out_features = self.latent_dims)
         self.bn_3 = nn.BatchNorm1d(self.latent_dims)
         self.encoder_params.extend(self.conv1.parameters())
         self.encoder_params.extend(self.conv2.parameters())
         self.encoder_params.extend(self.fc.parameters())
         # Decoder layers:
-        self.fc_2 = nn.Linear(in_features=latent_dims, out_features=latent_dims*(self.dim_2**2))
-        self.bn_1_2 = nn.BatchNorm1d(latent_dims*(self.dim_2**2))
+        self.fc_2 = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_2**2))
+        self.bn_1_2 = nn.BatchNorm1d(self.latent_dims*(self.dim_2**2))
         self.conv1_2 = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
         self.bn_2_2 = nn.BatchNorm2d(self.c)
         self.dp2 = nn.Dropout(p=0.2)
@@ -56,7 +59,7 @@ class FireAutoencoder_reward(nn.Module):
         self.scale = nn.Sigmoid()
 
         # Reward predictor:
-        self.fc_r1 = nn.Linear(in_features=latent_dims, out_features=128)
+        self.fc_r1 = nn.Linear(in_features=self.latent_dims, out_features=128)
         self.bn_r1 = nn.BatchNorm1d(128)
         self.fc_r2 = nn.Linear(in_features=128, out_features=64)
         self.bn_r2 = nn.BatchNorm1d(64)
@@ -76,12 +79,11 @@ class FireAutoencoder_reward(nn.Module):
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
 
         # We create optimizers for each task:
+        self.optimizer1 = torch.optim.Adam(self.encoder_params, lr = self.lr1, weight_decay=self.weight_decay)
          # We create optimizers for each task
-        self.optimizer1 = torch.optim.Adam(self.encoder_params, lr = lr1, weight_decay=self.weight_decay)
+        self.optimizer2 = torch.optim.Adam(self.decoder_params, lr = self.lr2, weight_decay=self.weight_decay)
          # We create optimizers for each task
-        self.optimizer2 = torch.optim.Adam(self.decoder_params, lr = lr2, weight_decay=self.weight_decay)
-         # We create optimizers for each task
-        self.optimizer3 = torch.optim.Adam(self.regression_params, lr = lr3, weight_decay=self.weight_decay)
+        self.optimizer3 = torch.optim.Adam(self.regression_params, lr = self.lr3, weight_decay=self.weight_decay)
 
         # Loss weigthts:
         self.sigma_1 = nn.parameter.Parameter(torch.Tensor([1]))
@@ -102,8 +104,8 @@ class FireAutoencoder_reward(nn.Module):
         self.val_reconstruction_epoch_loss = 0
         self.regression_epoch_loss = 0
         self.val_regression_epoch_loss = 0
-        self.T1 = temperature_1
-        self.T2 = temperature_2
+        self.T1 = self.temperature_1
+        self.T2 = self.temperature_2
 
         if self.is_sigmoid:
             self.sigmoid = nn.Sigmoid()

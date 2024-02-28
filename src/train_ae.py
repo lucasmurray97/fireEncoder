@@ -12,6 +12,7 @@ import sys
 sys.path.append("..")
 from networks.autoencoder import FireAutoencoder
 from networks.autoencoder_reward import FireAutoencoder_reward
+from networks.vae import VAE
 from networks.utils import EarlyStopper
 import argparse
 from tqdm import tqdm
@@ -28,11 +29,13 @@ parser.add_argument('--lr3', type=float, default=0.0001)
 parser.add_argument('--temperature_1', type=float, default = 100)
 parser.add_argument('--temperature_2', type=float, default = 100)
 parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--scale', action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--instance', type=str, default="homo_2")
 
 args = parser.parse_args()
 # Params
+params = {}
 latent_dims = args.latent_dim
 capacity = latent_dims//2
 use_gpu =  True
@@ -49,6 +52,26 @@ normalize = args.normalize
 weight_decay = args.weight_decay
 instance = args.instance
 
+# Stashin params in a params dictionary
+params = {}
+params["latent_dims"] = args.latent_dim
+params["capacity"] = args.latent_dim//2
+params["use_gpu"] =  True
+params["input_size"] = 20
+params["epochs"] = args.epochs
+params["sigmoid"] = args.sigmoid
+params["network"] = args.network
+params["lr1"] = args.lr1
+params["lr2"] = args.lr2
+params["lr3"] = args.lr3
+params["temperature_1"] = args.temperature_1
+params["temperature_2"] = args.temperature_2
+params["normalize"] = args.normalize
+params["scale"] = args.normalize
+params["weight_decay"] = args.weight_decay
+params["instance"] = args.instance
+
+
 # Dataset is loaded
 dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
@@ -59,8 +82,9 @@ train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(d
 nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
+    "VAE": VAE,
 }
-net = nets[network](capacity, input_size, latent_dims, sigmoid=sigmoid, temperature_1=temperature_1, temperature_2=temperature_2, lr1 = lr1, lr2 = lr2, lr3 = lr3, normalize = normalize, weight_decay=weight_decay, instance=instance)
+net = nets[network](params = params)
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
