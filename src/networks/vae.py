@@ -34,7 +34,7 @@ class VAE(nn.Module):
         self.fc = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_2**2))
         self.conv1_ = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv2_ = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
-
+        self.criterion = nn.MSELoss()
         # Inicialización de parámetros:
         nn.init.kaiming_uniform_(self.conv1.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, mode='fan_in', nonlinearity='relu')
@@ -73,7 +73,7 @@ class VAE(nn.Module):
         x = self.fc(x)
         x = x.view(x.size(0), self.c*2, self.dim_2, self.dim_2) # unflatten batch of feature vectors to a batch of multi-channel feature maps
         x = F.relu(self.conv1_(x))
-        x = torch.sigmoid(self.conv2_(x)) # last layer before output is sigmoid, since we are using BCE as reconstruction loss
+        x = torch.sigmoid(self.conv2_(x)) if self.is_sigmoid else F.relu(self.conv2_(x)) # last layer before output is sigmoid, since we are using BCE as reconstruction loss
         return x
     
     def forward(self, x, r):
@@ -101,8 +101,10 @@ class VAE(nn.Module):
         # we need to pick for the other loss term by several orders of magnitude.
         # Not averaging is the direct implementation of the negative log likelihood,
         # but averaging makes the weight of the other loss term independent of the image resolution.
-        recon_loss = F.binary_cross_entropy(recon_x.view(-1, 400), x.view(-1, 400), reduction='sum')
-        
+        if self.is_sigmoid:
+            recon_loss = F.binary_cross_entropy(recon_x.view(-1, 400), x.view(-1, 400), reduction='sum')
+        else:
+            recon_loss = self.criterion(recon_x, x)
         # KL-divergence between the prior distribution over latent vectors
         # (the one we are going to sample from when generating new images)
         # and the distribution estimated by the generator for the given image.
