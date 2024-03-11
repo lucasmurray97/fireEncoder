@@ -33,6 +33,7 @@ parser.add_argument('--scale', action=argparse.BooleanOptionalAction, default=Tr
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--instance', type=str, default="homo_2")
 parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--variational_beta', type=float, default=1)
 
 args = parser.parse_args()
 # Params
@@ -53,6 +54,7 @@ normalize = args.normalize
 weight_decay = args.weight_decay
 instance = args.instance
 not_reduced= args.not_reduced
+variational_beta = args.variational_beta
 
 # Stashin params in a params dictionary
 params = {}
@@ -73,6 +75,7 @@ params["scale"] = args.normalize
 params["weight_decay"] = args.weight_decay
 params["instance"] = args.instance
 params["not_reduced"] = not_reduced
+params["variational_beta"] = variational_beta
 
 # Dataset is loaded
 dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
@@ -120,7 +123,7 @@ for epoch in tqdm(range(epochs)):
     
 net.plot_loss(epochs)
 
-path_ = f"./weights/{instance}/{network}/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1={temperature_1}_T2={temperature_2}_lr1={lr1}_lr2={lr2}_lr3={lr3}_normalize={normalize}_weight_decay={weight_decay}_not_reduced={not_reduced}.pth"
+path_ = f"./weights/{instance}/{network}/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1={temperature_1}_T2={temperature_2}_lr1={lr1}_lr2={lr2}_lr3={lr3}_normalize={normalize}_weight_decay={weight_decay}_not_reduced={not_reduced}_variational_beta={variational_beta}.pth"
 torch.save(net.state_dict(), path_)
 net.eval()
 full_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)

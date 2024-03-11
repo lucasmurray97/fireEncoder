@@ -65,9 +65,10 @@ class VAE(nn.Module):
         self.val_reconstruction_epoch_loss = 0
         self.divergence_epoch_loss = 0
         self.val_divergence_epoch_loss = 0
-        self.variational_beta = 1
+        self.variational_beta = params["variational_beta"]
         self.last_mu = None
         self.last_logvar = None
+        print(self.variational_beta)
         
     def encode(self, x):
         x = self.bn1(self.conv1(x))
@@ -175,7 +176,7 @@ class VAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -184,7 +185,7 @@ class VAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/reconstruction_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/reconstruction_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -193,7 +194,7 @@ class VAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/divergence_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/divergence_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
