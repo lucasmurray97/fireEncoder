@@ -57,9 +57,8 @@ def visualise_output(images,r, model, n_images ,n_rows):
         images = model(images, r)
         images = images.cpu()
         images = to_img(images)
-        np_imagegrid = torch.round(torchvision.utils.make_grid(images[0:n_images], n_rows)).numpy()
-        plt.imshow(np.transpose(np_imagegrid, (1, 2, 0)))
-        plt.show()
+        np_imagegrid = torchvision.utils.make_grid(images[0:n_images], n_rows).numpy()
+        plt.imshow(np.transpose(np.where(np_imagegrid >= 0.5, 1.0, 0.0), (1, 2, 0)))
 
 def visualise_output_reward(images,r, model, n_images ,n_rows):
 
@@ -70,5 +69,5 @@ def visualise_output_reward(images,r, model, n_images ,n_rows):
         images = images.cpu()
         images = to_img(images)
         np_imagegrid = torch.round(torchvision.utils.make_grid(images[0:n_images], n_rows)).numpy()
-        plt.imshow(np.transpose(np_imagegrid, (1, 2, 0)))
+        plt.imshow(np.transpose((np_imagegrid, (1, 2, 0))))
         plt.show()

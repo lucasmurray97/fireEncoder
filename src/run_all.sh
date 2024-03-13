@@ -1,28 +1,36 @@
 #!/bin/bash
 ### AE
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 0.5
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 0.5
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 0.5
 
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 0.5
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 0.5
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 0.5
 
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1e-2
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1e-2
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1e-2
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-1
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-1
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-1
 
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1e-2
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1e-2
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1e-2
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-1
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-1
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-1
 
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1e-5
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1e-5
-python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1e-5
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-2
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-2
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-2
 
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --variational_beta 1e-5
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --variational_beta 1e-5
-python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --variational_beta 1e-5
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-2
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-2
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-2
+
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-3
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-3
+python train_ae.py --latent_dim 256 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-3
+
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-3 --distribution_std 1e-3
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-4 --distribution_std 1e-3
+python train_ae.py --latent_dim 128 --epochs 100 --network VAE --instance homo_2 --lr1 1e-5 --distribution_std 1e-3
 
 
 : '
