@@ -104,8 +104,9 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         while(temp):
             parent_1 = temp.pop(random.randrange(len(temp)))
             parent_2 = temp.pop(random.randrange(len(temp)))
-            self.population.append(self.indiv_cross_over(parent_1, parent_2))
-    
+            offspring = self.indiv_cross_over(parent_1, parent_2)
+            self.population.append(offspring)
+                
     def retrieve_sigma(self, embedding):
         """
         Retrieves sigma associated with an embedding

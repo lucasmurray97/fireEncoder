@@ -18,8 +18,8 @@ class Abstract_Genetic_Algorithm:
         """
         self.model = model
         self.model.eval()
-        self.root = f"../../../data/complete_random/{instance}/Sub20x20_full_grid.pkl"
-        with open(self.root, 'rb') as f:
+        self.root = f"../../../data/complete_random/{instance}/"
+        with open(self.root+"Sub20x20_full_grid.pkl", 'rb') as f:
             self.data = pickle.load(f)
         self.population = []
         self.valuations = []
@@ -31,8 +31,9 @@ class Abstract_Genetic_Algorithm:
         self.data.sort(key=lambda x: x[1])
         self.population = self.data[len(self.data)- int(len(self.data) * alpha) - 1:len(self.data) - 1]
         self.population.reverse()
-        self.valuations = [i[1] for i in self.population]
+        #self.valuations = [i[1] for i in self.population]
         self.population = [(self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))) for x in self.population]
+        self.valuations = [self.calc_fitness(i, n_sims=10) for i in self.population]
 
     def selection(self, population):
         pass
@@ -44,7 +45,8 @@ class Abstract_Genetic_Algorithm:
         """
         solution = self.model.decode(embedding[0])
         write_firewall_file((solution > 0.5) * -1)
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 1.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweather 359 --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
+        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
