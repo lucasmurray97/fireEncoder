@@ -11,7 +11,7 @@ from abstract_ga import Abstract_Genetic_Algorithm
 import random
 from tqdm import tqdm
 import random
-
+import json
 class Variational_GA(Abstract_Genetic_Algorithm):
 
     def __init__(self, model, instance="homo_2") -> None:
@@ -129,6 +129,8 @@ class Variational_GA(Abstract_Genetic_Algorithm):
     
     def train(self, n_iter = 1000):
         print("--------------Training started------------------")
+        best = []
+        avg = []
         for i in tqdm(range(n_iter)):
             self.population_cross_over()
             self.population_mutation()
@@ -136,6 +138,11 @@ class Variational_GA(Abstract_Genetic_Algorithm):
             if self.stop_criteria():
                 break
             max_ = max(self.valuations)
+            best.append(max_)
+            avg.append(sum(self.valuations)/len(self.valuations))
             print(f"Current avg. score: {sum(self.valuations)/len(self.valuations)}, max valuation: {max_}")
         print("--------------Training stoped------------------")
-        self.get_best()
+        with open('best.json', 'w') as f:
+            json.dump(best, f)
+        with open('avg.json', 'w') as f:
+           json.dump(avg, f)
