@@ -32,5 +32,5 @@ net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={laten
 a = Variational_GA(net)
 a.initialize_population(alpha=0.001)
 print(len(a.population))
-a.train(n_iter=10)
+a.train(n_iter=1)
 
