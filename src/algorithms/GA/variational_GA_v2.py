@@ -12,12 +12,16 @@ import random
 from tqdm import tqdm
 import random
 import json
-class Variational_GA_V1(Abstract_Genetic_Algorithm):
+import numpy as np
 
-    def __init__(self, model, instance="homo_2") -> None:
+
+class Variational_GA_V2(Abstract_Genetic_Algorithm):
+
+    def __init__(self, model, instance="homo_2", mutation_rate = 0.2) -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
-        self.name = "VA_GA_V1"
+        self.name = "VA_GA_V2"
+        self.mutation_rate = mutation_rate
     def selection(self, alpha = 0.5, population_size = 50):
         """
         Selects population_size elements from current population by computing a score that ponderates
@@ -69,12 +73,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         Generates a mutation by sampling from N(mu, sigma)
         """
         mu, sigma = embedding
-        _, dims = mu.shape
-        chosen_dim = random.randrange(0, dims-1)
-        std = sigma[0][chosen_dim].mul(0.5).exp_()
-        eps = torch.normal(torch.zeros(std.shape))
-        sample = mu[0][chosen_dim] + (eps * std)
-        mu[0][chosen_dim] = sample
+        mu = self.model.latent_sample(mu, sigma)
         _, sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
     
@@ -84,7 +83,9 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         """
         temp = self.population.copy()
         for i in self.population:
-            temp.append(self.indiv_mutation(i))
+            prob = np.random.uniform()
+            if prob <= self.mutation_rate:
+                temp.append(self.indiv_mutation(i))
         self.population = temp
     
     def indiv_cross_over(self, embedding_1, embedding_2):
@@ -132,7 +133,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         print("--------------Training started------------------")
         best = []
         avg = []
-        for i in tqdm(range(n_iter)):
+        for _ in tqdm(range(n_iter)):
             self.population_cross_over()
             self.population_mutation()
             self.selection()

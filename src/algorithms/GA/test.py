@@ -1,5 +1,6 @@
 from abstract_ga import Abstract_Genetic_Algorithm
-from variational_GA import Variational_GA
+from variational_GA import Variational_GA_V1
+from variational_GA_v2 import Variational_GA_V2
 import torch
 import sys
 sys.path.append("../../")
@@ -29,8 +30,7 @@ params = {
 }
 net = VAE(params)
 net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
-a = Variational_GA(net)
+a = Variational_GA_V2(net)
 a.initialize_population(alpha=0.001)
-print(len(a.population))
-a.train(n_iter=1)
+a.train(n_iter=2)
 
