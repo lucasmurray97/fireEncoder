@@ -12,6 +12,7 @@ import random
 from tqdm import tqdm
 import random
 import json
+import matplotlib.pyplot as plt
 class Variational_GA_V1(Abstract_Genetic_Algorithm):
 
     def __init__(self, model, instance="homo_2") -> None:
@@ -147,3 +148,8 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
             json.dump(best, f)
         with open(f'results/avg_{self.name}_{n_iter}.json', 'w') as f:
            json.dump(avg, f)
+        x = [i for i in range(len(best))]
+        plt.plot(x, best, label="Best solution")
+        plt.plot(x, avg, label="Population Average")
+        plt.legend()
+        plt.savefig(f'results/plot_{self.name}_{n_iter}.png')

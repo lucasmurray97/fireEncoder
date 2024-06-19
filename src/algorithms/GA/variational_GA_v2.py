@@ -13,7 +13,7 @@ from tqdm import tqdm
 import random
 import json
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class Variational_GA_V2(Abstract_Genetic_Algorithm):
 
@@ -148,3 +148,8 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
             json.dump(best, f)
         with open(f'results/avg_{self.name}_{n_iter}.json', 'w') as f:
            json.dump(avg, f)
+        x = [i for i in range(len(best))]
+        plt.plot(x, best, label="Best solution")
+        plt.plot(x, avg, label="Population Average")
+        plt.legend()
+        plt.savefig(f'results/plot_{self.name}_{n_iter}.png')
