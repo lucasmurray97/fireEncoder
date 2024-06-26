@@ -29,8 +29,9 @@ params = {
     "distribution_std": distribution_std,
 }
 net = VAE(params)
+print(net.training)
 net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
 a = Variational_GA_V2(net)
-a.initialize_population(alpha=0.001)
-a.train(n_iter=2)
+a.initialize_population(alpha=0.01)
+a.train(n_iter=20)
 

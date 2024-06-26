@@ -4,8 +4,6 @@ from numpy import genfromtxt
 import csv  
 import pprint
 import os
-from cell2fire.Cell2FireC_class import Cell2FireC
-from cell2fire.main import main
 import os
 import shutil
 import random
