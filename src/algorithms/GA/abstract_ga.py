@@ -35,6 +35,7 @@ class Abstract_Genetic_Algorithm:
         self.population = [(self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))) for x in self.population]
         self.valuations = [self.calc_fitness(i, n_sims=10) for i in self.population]
 
+
     def selection(self, population):
         pass
 
