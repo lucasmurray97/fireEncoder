@@ -27,9 +27,9 @@ class MyDataset(torch.utils.data.Dataset):
 
   def __getitem__(self, i):
     if not self.normalize:
-      return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(self.rewards[i], dtype="float32")
+      return np.expand_dims((self.data[i][0] < 0).astype('float32'), axis=0), np.array(self.rewards[i], dtype="float32")
     else:
-      return np.expand_dims(self.data[i][0].astype('float32'), axis=0), np.array(self.scale(self.rewards[i]), dtype="float32")
+      return np.expand_dims((self.data[i][0] < 0).astype('float32'), axis=0), np.array(self.scale(self.rewards[i]), dtype="float32")
   
   def scale(self, i):
      scaled = (i - self.min_reward)/(self.max_reward - self.min_reward)

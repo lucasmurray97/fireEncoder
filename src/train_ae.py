@@ -35,12 +35,13 @@ parser.add_argument('--instance', type=str, default="homo_2")
 parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--variational_beta', type=float, default=1)
 parser.add_argument('--distribution_std', type=float, default=1)
+parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 # Params
 params = {}
 latent_dims = args.latent_dim
-capacity = latent_dims//2
+capacity = 1
 use_gpu =  True
 input_size = 20
 epochs = args.epochs
@@ -81,7 +82,7 @@ params["variational_beta"] = variational_beta
 params["distribution_std"] = distribution_std
 
 # Dataset is loaded
-dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
+dataset = MyDataset(root=f'../data/complete_random/{instance}/solutions/Sub20x20_full_grid.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
 
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
