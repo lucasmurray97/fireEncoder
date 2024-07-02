@@ -7,20 +7,21 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 
-class VAE(nn.Module):
+class VAE_V2(nn.Module):
     def __init__(self, params):
-        super(VAE, self).__init__()
-        self.name = "VAE"
+        super(VAE_V2, self).__init__()
+        self.name = "VAE_V2"
         self.instance= params["instance"]
         self.latent_dims = params["latent_dims"]
         self.c = params["capacity"]
         self.input_size = params["input_size"]
         self.distribution_std = params["distribution_std"]
-        kernel_size = 4
+        kernel_size = 2
         stride = 2
         padding = 1
         self.dim_1 = int((self.input_size - kernel_size + 2*padding)/2 + 1)
         self.dim_2 = int((self.dim_1 - kernel_size + 2*padding)/2 + 1)
+        self.dim_3 = int((self.dim_2 - kernel_size + 2*padding)/2 + 1)
         sigmoid = params["sigmoid"]
         self.is_sigmoid = sigmoid
         self.lr1 = params["lr1"]
@@ -29,21 +30,27 @@ class VAE(nn.Module):
         # By default set to training
         self.training =  True
         # Encoder layers:
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
-        self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
-        self.fc_mu = nn.Linear(in_features=self.latent_dims*(self.dim_2**2), out_features = self.latent_dims)
-        self.fc_logvar = nn.Linear(in_features=self.latent_dims*(self.dim_2**2), out_features = self.latent_dims)
-        self.bn1 = nn.BatchNorm2d(self.c)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=int(self.c/2), kernel_size=kernel_size, stride=stride, padding=padding)
+        self.conv2 = nn.Conv2d(in_channels=int(self.c/2), out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
+        self.conv3 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
+        self.fc_mu = nn.Linear(in_features=self.latent_dims*(self.dim_3**2), out_features = self.latent_dims)
+        self.fc_logvar = nn.Linear(in_features=self.latent_dims*(self.dim_3**2), out_features = self.latent_dims)
+        self.bn1 = nn.BatchNorm2d(int(self.c/2))
         self.drop1 = nn.Dropout()
-        self.bn2 = nn.BatchNorm2d(self.c*2)
+        self.bn2 = nn.BatchNorm2d(self.c)
         self.drop2 = nn.Dropout()
+        self.bn3 = nn.BatchNorm2d(self.c*2)
+        self.drop3 = nn.Dropout()
         # Decoder layers:
-        self.fc = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_2**2))
+        self.fc = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_3**2))
         self.conv1_ = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
-        self.conv2_ = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.conv2_ = nn.ConvTranspose2d(in_channels=self.c, out_channels=int(self.c/2), kernel_size=kernel_size, stride=stride, padding=padding)
+        self.conv3_ = nn.ConvTranspose2d(in_channels=int(self.c/2), out_channels=1, kernel_size=kernel_size+2, stride=stride, padding=padding)
         self.criterion = nn.BCELoss() if self.is_sigmoid else nn.MSELoss()
         self.bn1_2 = nn.BatchNorm2d(self.c)
         self.drop1_2 = nn.Dropout()
+        self.bn2_2 = nn.BatchNorm2d(int(self.c/2))
+        self.drop2_2 = nn.Dropout()
         # Inicialización de parámetros:
         nn.init.kaiming_uniform_(self.conv1.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, mode='fan_in', nonlinearity='relu')
@@ -71,21 +78,37 @@ class VAE(nn.Module):
         self.last_logvar = None
         
     def encode(self, x):
+        print(x.shape)
         x = self.bn1(self.conv1(x))
         x = self.drop1(F.relu(x))
+        print(x.shape)
         x = self.bn2(self.conv2(x))
+        print(x.shape)
         x = self.drop2(F.relu(x))
+        print(x.shape)
+        x = self.bn3(self.conv3(x))
+        print(x.shape)
+        x = self.drop3(F.relu(x))
+        print(x.shape)
         x = x.view(x.size(0), -1) # flatten batch of multi-channel feature maps to a batch of feature vectors
+        print(x.shape)
         x_mu = self.fc_mu(x)
         x_logvar = self.fc_logvar(x)
         return x_mu, x_logvar
 
     def decode(self, x):
         x = self.fc(x)
-        x = x.view(x.size(0), self.c*2, self.dim_2, self.dim_2) # unflatten batch of feature vectors to a batch of multi-channel feature maps
+        print(x.shape)
+        x = x.view(x.size(0), self.c*2, self.dim_3, self.dim_3) # unflatten batch of feature vectors to a batch of multi-channel feature maps
+        print(x.shape)
         x = self.bn1_2(self.conv1_(x))
         x = self.drop1_2(F.relu(x))
-        x = torch.sigmoid(self.conv2_(x)) if self.is_sigmoid else F.relu(self.conv2_(x)) # last layer before output is sigmoid, since we are using BCE as reconstruction loss
+        print(x.shape)
+        x = self.bn2_2(self.conv2_(x))
+        x = self.drop2_2(F.relu(x))
+        print(x.shape)
+        x = torch.sigmoid(self.conv3_(x)) if self.is_sigmoid else F.relu(self.conv3_(x)) # last layer before output is sigmoid, since we are using BCE as reconstruction loss
+        print(x.shape)
         return x
     
     def forward(self, x, r):

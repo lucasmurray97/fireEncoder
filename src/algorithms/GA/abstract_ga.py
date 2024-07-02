@@ -6,6 +6,9 @@ sys.path.append("../../")
 from networks.vae import VAE
 import torch
 import pickle
+import numpy as np
+
+
 class Abstract_Genetic_Algorithm:
     """
     Super class of all genetic algorithms to be implemented.
@@ -26,15 +29,21 @@ class Abstract_Genetic_Algorithm:
 
     def initialize_population(self, alpha = 0.01):
         """
-        Initialized population, considering the best alpha * 100 % of solutions.
+        Initialized population, considering the best alpha * 100 % of solutions and alpha / 2 * 100 % of random 
+        solutions.
         """
+        # Getting best solutions
         self.data.sort(key=lambda x: x[1])
         self.population = self.data[len(self.data)- int(len(self.data) * alpha) - 1:len(self.data) - 1]
         self.population.reverse()
-        #self.valuations = [i[1] for i in self.population]
-        self.population = [(self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))) for x in self.population]
-        self.valuations = [self.calc_fitness(i, n_sims=10) for i in self.population]
-
+        self.valuations = [i[1] for i in self.population]
+        self.population = [self.transform(x) for x in self.population]
+        # Adding random solutions
+        rest = [i for i in range(0, len(self.data) - int(len(self.data) * alpha) - 1)]
+        sample = np.random.choice(rest, int(len(self.data) * (alpha / 2)), replace=False)
+        for i in sample:
+            self.population.append(self.transform(self.data[i]))
+            self.valuations.append(self.data[i][1])
 
     def selection(self, population):
         pass
@@ -60,6 +69,9 @@ class Abstract_Genetic_Algorithm:
                 if cell == 1:
                     reward-= 1
         return reward/n_sims
+    
+    def transform(self, x):
+        pass
     
     def fitness_func(self):
         pass

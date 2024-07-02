@@ -13,6 +13,7 @@ sys.path.append("..")
 from networks.autoencoder import FireAutoencoder
 from networks.autoencoder_reward import FireAutoencoder_reward
 from networks.vae import VAE
+from networks.vae_v2 import VAE_V2
 from networks.utils import EarlyStopper
 import argparse
 from tqdm import tqdm
@@ -41,7 +42,7 @@ args = parser.parse_args()
 # Params
 params = {}
 latent_dims = args.latent_dim
-capacity = 1
+capacity = args.latent_dim//2
 use_gpu =  True
 input_size = 20
 epochs = args.epochs
@@ -92,6 +93,7 @@ nets = {
     "AE": FireAutoencoder,
     "AE_Reward": FireAutoencoder_reward,
     "VAE": VAE,
+    "VAE_V2": VAE_V2,
 }
 net = nets[network](params = params)
 # Data loader is built

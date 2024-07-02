@@ -24,16 +24,6 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         self.sim_meassure = LA.norm
         self.name = "VANILLA_GA"
 
-    def initialize_population(self, alpha = 0.01):
-        """
-        Initialized population, considering the best alpha * 100 % of solutions.
-        """
-        self.data.sort(key=lambda x: x[1])
-        self.population = self.data[len(self.data)- int(len(self.data) * alpha) - 1:len(self.data) - 1]
-        self.population.reverse()
-        #self.valuations = [i[1] for i in self.population]
-        self.population = [x[0] for x in self.population]
-        self.valuations = [self.calc_fitness(i, n_sims=10) for i in self.population]
 
     def calc_fitness(self, solution, n_sims = 10):
         """
@@ -143,11 +133,14 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         Applies indiv_cross_over to population
         """
         temp = self.population.copy()
-        while(temp):
+        while(len(temp) > 1):
             parent_1 = temp.pop(random.randrange(len(temp)))
             parent_2 = temp.pop(random.randrange(len(temp)))
             offspring = self.indiv_cross_over(parent_1, parent_2)
             self.population.append(offspring)
+
+    def transform(self, x):
+        return x[0]
                 
 
     def stop_criteria(self):
@@ -188,3 +181,4 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         plt.plot(x, avg, label="Population Average")
         plt.legend()
         plt.savefig(f'results/plot_{self.name}_{n_iter}.png')
+        plt.close()

@@ -103,11 +103,14 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         Applies indiv_cross_over to population
         """
         temp = self.population.copy()
-        while(temp):
+        while(len(temp) > 1):
             parent_1 = temp.pop(random.randrange(len(temp)))
             parent_2 = temp.pop(random.randrange(len(temp)))
             offspring = self.indiv_cross_over(parent_1, parent_2)
             self.population.append(offspring)
+    
+    def transform(self, x):
+        return self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))
                 
     def retrieve_sigma(self, embedding):
         """
@@ -153,3 +156,4 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         plt.plot(x, avg, label="Population Average")
         plt.legend()
         plt.savefig(f'results/plot_{self.name}_{n_iter}.png')
+        plt.close()
