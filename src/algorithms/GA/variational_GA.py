@@ -13,13 +13,18 @@ from tqdm import tqdm
 import random
 import json
 import matplotlib.pyplot as plt
+import numpy as np
 class Variational_GA_V1(Abstract_Genetic_Algorithm):
 
-    def __init__(self, model, instance="homo_2") -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.name = "VA_GA_V1"
-    def selection(self, alpha = 0.5, population_size = 50):
+        self.alpha = alpha
+        self.mutation_rate = mutation_rate
+        self.population_size = population_size
+        self.initial_population = initial_population
+    def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates
         fitness and diversity.
@@ -27,7 +32,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         selected = []
         fitness = []
         scores = []
-        chosen = population_size
+        chosen = self.population_size
         for i in range(len(self.population)):
             if i < len(self.valuations):
                 fitness.append(self.valuations[i])
@@ -41,7 +46,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         chosen -= 1
         self.valuations = [first]
         while(chosen):
-            combined = [alpha * fitness[i] + (1-alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
+            combined = [self.alpha * fitness[i] + (1-self.alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
             index_max = max(range(len(combined)), key=combined.__getitem__)
             selected.append(self.population[index_max])
             self.population.pop(index_max)
@@ -85,7 +90,9 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         """
         temp = self.population.copy()
         for i in self.population:
-            temp.append(self.indiv_mutation(i))
+            prob = np.random.uniform()
+            if prob <= self.mutation_rate:
+                temp.append(self.indiv_mutation(i))
         self.population = temp
     
     def indiv_cross_over(self, embedding_1, embedding_2):
@@ -132,28 +139,3 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         print(self.model.decode(self.population[index_max][0]) > 0.5)
         return index_max
     
-    def train(self, n_iter = 1000):
-        print("--------------Training started------------------")
-        best = []
-        avg = []
-        for i in tqdm(range(n_iter)):
-            self.population_cross_over()
-            self.population_mutation()
-            self.selection()
-            if self.stop_criteria():
-                break
-            max_ = max(self.valuations)
-            best.append(max_)
-            avg.append(sum(self.valuations)/len(self.valuations))
-            print(f"Current avg. score: {sum(self.valuations)/len(self.valuations)}, max valuation: {max_}")
-        print("--------------Training stoped------------------")
-        with open(f'results/best_{self.name}_{n_iter}.json', 'w') as f:
-            json.dump(best, f)
-        with open(f'results/avg_{self.name}_{n_iter}.json', 'w') as f:
-           json.dump(avg, f)
-        x = [i for i in range(len(best))]
-        plt.plot(x, best, label="Best solution")
-        plt.plot(x, avg, label="Population Average")
-        plt.legend()
-        plt.savefig(f'results/plot_{self.name}_{n_iter}.png')
-        plt.close()

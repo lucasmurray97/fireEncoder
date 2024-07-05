@@ -7,8 +7,9 @@ from networks.vae import VAE
 import torch
 import pickle
 import numpy as np
-
-
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import json
 class Abstract_Genetic_Algorithm:
     """
     Super class of all genetic algorithms to be implemented.
@@ -90,3 +91,48 @@ class Abstract_Genetic_Algorithm:
 
     def stop_criteria(self):
         pass
+
+    def train(self, n_iter = 1000, n_repeats=1):
+        print("--------------Training started------------------")
+        best = {}
+        avg = {}
+        for j in tqdm(range(n_repeats)):
+            best[j] = []
+            avg[j] = []
+            for i in tqdm(range(n_iter)):
+                self.population_cross_over()
+                self.population_mutation()
+                self.selection()
+                if self.stop_criteria():
+                    break
+                max_ = max(self.valuations)
+                best[j].append(max_)
+                avg[j].append(sum(self.valuations)/len(self.valuations))
+                print(f"Current avg. score: {sum(self.valuations)/len(self.valuations)}, max valuation: {max_}")
+        print("--------------Training stoped------------------")
+        with open(f'results/best__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.json', 'w') as f:
+            json.dump(best, f)
+        with open(f'results/avg__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.json', 'w') as f:
+           json.dump(avg, f)
+        x = [i for i in range(n_iter)]
+        best_mean = [0 for i in range(n_iter)]
+        avg_mean = [0 for i in range(n_iter)]
+        for j in range(n_repeats):
+            for i in range(n_iter):
+                best_mean[i] += best[j][i]
+                avg_mean[i] += avg[j][i]
+        best_mean = list(map(lambda x: x/n_repeats, best_mean))
+        avg_mean = list(map(lambda x: x/n_repeats, avg_mean))
+        best_std = [0 for i in range(n_iter)]
+        avg_std = [0 for i in range(n_iter)]
+        for i in range(n_iter):
+            best_std[i] = sum([(best_mean[i] - best[j][i]) ** 2 / n_repeats  for j in range(n_repeats)]) ** 0.5
+            avg_std[i] = sum([(avg_mean[i] - avg[j][i]) ** 2 / n_repeats  for j in range(n_repeats)]) ** 0.5
+        print(best_mean, best_std)
+        plt.plot(x, best_mean, lw=2, label="Best solution", color="blue")
+        plt.fill_between(x, [best_mean[i] + best_std[i] for i in range(n_iter)], [best_mean[i] - best_std[i] for i in range(n_iter)], facecolor='blue', alpha=0.2)
+        plt.plot(x, avg_mean, lw=2, label="Avg solution", color="red")
+        plt.fill_between(x, [avg_mean[i] + avg_std[i] for i in range(n_iter)], [avg_mean[i] - avg_std[i] for i in range(n_iter)], facecolor='red', alpha=0.2)
+        plt.legend()
+        plt.savefig(f'results/plot__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.png')
+        plt.close()
