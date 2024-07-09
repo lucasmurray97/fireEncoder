@@ -62,7 +62,6 @@ elif algorithm == "v2":
 else:
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 
-method.initialize_population(alpha=initial_population)
 method.train(n_iter=iters, n_repeats=n_repeats)
 
 

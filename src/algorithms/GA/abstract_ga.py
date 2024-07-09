@@ -28,20 +28,20 @@ class Abstract_Genetic_Algorithm:
         self.population = []
         self.valuations = []
 
-    def initialize_population(self, alpha = 0.01):
+    def initialize_population(self, initial_population = 0.01):
         """
-        Initialized population, considering the best alpha * 100 % of solutions and alpha / 2 * 100 % of random 
+        Initialized population, considering the best initial_population * 100 % of solutions and initial_population / 2 * 100 % of random 
         solutions.
         """
         # Getting best solutions
         self.data.sort(key=lambda x: x[1])
-        self.population = self.data[len(self.data)- int(len(self.data) * alpha) - 1:len(self.data) - 1]
+        self.population = self.data[len(self.data)- int(len(self.data) * initial_population) - 1:len(self.data) - 1]
         self.population.reverse()
         self.valuations = [i[1] for i in self.population]
         self.population = [self.transform(x) for x in self.population]
         # Adding random solutions
-        rest = [i for i in range(0, len(self.data) - int(len(self.data) * alpha) - 1)]
-        sample = np.random.choice(rest, int(len(self.data) * (alpha / 2)), replace=False)
+        rest = [i for i in range(0, len(self.data) - int(len(self.data) * initial_population) - 1)]
+        sample = np.random.choice(rest, int(len(self.data) * (initial_population / 2)), replace=False)
         for i in sample:
             self.population.append(self.transform(self.data[i]))
             self.valuations.append(self.data[i][1])
@@ -49,7 +49,7 @@ class Abstract_Genetic_Algorithm:
     def selection(self, population):
         pass
 
-    def calc_fitness(self, embedding, n_sims = 10):
+    def calc_fitness(self, embedding, n_sims = 50):
         """
         Calculates the average number of burned cells of embedding's associated
         solution.
@@ -97,6 +97,7 @@ class Abstract_Genetic_Algorithm:
         best = {}
         avg = {}
         for j in tqdm(range(n_repeats)):
+            self.initialize_population(self.initial_population)
             best[j] = []
             avg[j] = []
             for i in tqdm(range(n_iter)):
