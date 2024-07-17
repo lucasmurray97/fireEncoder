@@ -41,7 +41,7 @@ class Abstract_Genetic_Algorithm:
         self.population = [self.transform(x) for x in self.population]
         # Adding random solutions
         rest = [i for i in range(0, len(self.data) - int(len(self.data) * initial_population) - 1)]
-        sample = np.random.choice(rest, int(len(self.data) * (initial_population / 2)), replace=False)
+        sample = np.random.choice(rest, int(len(self.data) * (initial_population)), replace=False)
         for i in sample:
             self.population.append(self.transform(self.data[i]))
             self.valuations.append(self.data[i][1])
