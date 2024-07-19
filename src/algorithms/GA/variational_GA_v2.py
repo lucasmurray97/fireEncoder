@@ -47,7 +47,7 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         chosen -= 1
         self.valuations = [first]
         while(chosen):
-            combined = [self.alpha * fitness[i] / 400 + (1-self.alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
+            combined = [self.alpha * fitness[i] / 100 + (1-self.alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
             index_max = max(range(len(combined)), key=combined.__getitem__)
             selected.append(self.population[index_max])
             self.population.pop(index_max)
