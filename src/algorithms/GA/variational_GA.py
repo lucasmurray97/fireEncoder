@@ -46,7 +46,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         chosen -= 1
         self.valuations = [first]
         while(chosen):
-            combined = [self.alpha * fitness[i] / 100 + (1-self.alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
+            combined = [self.alpha * fitness[i] + (1-self.alpha) * self.compute_similarity(self.population[i], selected) / 100 for i in range(len(self.population))]
             index_max = max(range(len(combined)), key=combined.__getitem__)
             selected.append(self.population[index_max])
             self.population.pop(index_max)
@@ -64,10 +64,10 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         similarity = 0
         if population:
             for i in population:
-                similarity += self.sim_meassure(embedding[0], i[0])
+                similarity -=  self.sim_meassure(embedding[0], i[0])
             return similarity.item()/len(population)
         else:
-            return 0
+            return 1
     
 
     def indiv_mutation(self, embedding):
