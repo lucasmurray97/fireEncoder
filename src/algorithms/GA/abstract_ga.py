@@ -37,7 +37,7 @@ class Abstract_Genetic_Algorithm:
         self.data.sort(key=lambda x: x[1])
         self.population = self.data[len(self.data)- int(len(self.data) * initial_population) - 1:len(self.data) - 1]
         self.population.reverse()
-        self.valuations = [i[1] for i in self.population]
+        self.valuations = [1 + (i[1]/400) for i in self.population]
         self.population = [self.transform(x) for x in self.population]
         # Adding random solutions
         rest = [i for i in range(0, len(self.data) - int(len(self.data) * initial_population) - 1)]
@@ -49,7 +49,7 @@ class Abstract_Genetic_Algorithm:
     def selection(self, population):
         pass
 
-    def calc_fitness(self, embedding, n_sims = 50):
+    def calc_fitness(self, embedding, n_sims = 10):
         """
         Calculates the average number of burned cells of embedding's associated
         solution.
@@ -69,7 +69,7 @@ class Abstract_Genetic_Algorithm:
             for cell in my_data.flatten():
                 if cell == 1:
                     reward-= 1
-        return reward/n_sims
+        return 1 + ((reward/n_sims) / 400)
     
     def transform(self, x):
         pass
