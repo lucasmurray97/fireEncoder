@@ -44,7 +44,8 @@ class Abstract_Genetic_Algorithm:
         sample = np.random.choice(rest, int(len(self.data) * (initial_population)), replace=False)
         for i in sample:
             self.population.append(self.transform(self.data[i]))
-            self.valuations.append(self.data[i][1])
+            self.valuations.append(1 + self.data[i][1] / 400)
+        print(len(self.population))
 
     def selection(self, population):
         pass

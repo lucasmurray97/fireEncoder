@@ -27,6 +27,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
+
     def calc_fitness(self, solution, n_sims = 10):
         """
         Calculates the average number of burned cells of embedding's associated
@@ -46,7 +47,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
             for cell in my_data.flatten():
                 if cell == 1:
                     reward-= 1
-        return reward/n_sims
+        return 1 + ((reward/n_sims) / 400)
 
     def selection(self):
         """
@@ -61,7 +62,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
             if i < len(self.valuations):
                 fitness.append(self.valuations[i])
             else:
-                fitness.append(self.calc_fitness(self.population[i]))
+                fitness.append(self.calc_fitness(self.population[i]))   
         index_max = max(range(len(fitness)), key=fitness.__getitem__)
         selected.append(self.population[index_max])
         scores.append(fitness[index_max])
@@ -70,7 +71,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         chosen -= 1
         self.valuations = [first]
         while(chosen):
-            combined = [self.alpha * fitness[i] / 100 + (1-self.alpha) * self.compute_similarity(self.population[i], selected) for i in range(len(self.population))]
+            combined = [self.alpha * fitness[i] + (1-self.alpha) * self.compute_similarity(self.population[i], selected) / 1000 for i in range(len(self.population))]
             index_max = max(range(len(combined)), key=combined.__getitem__)
             selected.append(self.population[index_max])
             self.population.pop(index_max)
@@ -88,7 +89,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         similarity = 0
         if population:
             for i in population:
-                similarity += self.sim_meassure(matrix - i)
+                similarity += 1 - np.mean(matrix == i) / 400
             return similarity.item()/len(population)
         else:
             return 0
