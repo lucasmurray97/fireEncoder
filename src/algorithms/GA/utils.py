@@ -31,3 +31,13 @@ def write_firewall_file(solution):
         # write the data
         writer.writerow(firewalls)
     return
+
+def erase_firebreaks():
+    header = ['Year Number','Cell Numbers']
+    absolute_path = os.path.dirname(__file__)
+    path = f'{absolute_path}/../eval/harvested/HarvestedCells.csv'
+    # We empty out the firebreaks file
+    with open(path, 'w', encoding='UTF8') as f:
+        writer = csv.writer(f)
+        # write the header
+        writer.writerow(header)

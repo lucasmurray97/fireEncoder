@@ -1,7 +1,7 @@
 import os
 import sys
 from numpy import genfromtxt
-from utils import write_firewall_file
+from utils import write_firewall_file, erase_firebreaks
 sys.path.append("../../")
 from networks.vae import VAE
 import torch
@@ -47,6 +47,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
             for cell in my_data.flatten():
                 if cell == 1:
                     reward-= 1
+        erase_firebreaks()
         return 1 + ((reward/n_sims) / 400)
 
     def selection(self):
