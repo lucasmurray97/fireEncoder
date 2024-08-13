@@ -45,7 +45,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
             my_data = genfromtxt(dir+files[-1], delimiter=',')
             # Burned cells are counted and turned into negative rewards
             for cell in my_data.flatten():
-                if cell == 1:
+                if cell == 1.0:
                     reward-= 1
         erase_firebreaks()
         return 1 + ((reward/n_sims) / 400)
@@ -101,12 +101,19 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         Generates a mutation by sampling from N(mu, sigma)
         """
         n, m = matrix.shape
-        available_cells_x = [x for x in range(n)]
-        available_cells_y = [y for y in range(m)]
-        i = np.random.choice(available_cells_x, size=1)
-        j = np.random.choice(available_cells_y, size=1)
+        ones = []
+        zeros = []
+        for i in range(n):
+            for j in range(m):
+                if matrix[i,j]:
+                    ones.append((i,j))
+                else:
+                    zeros.append((i,j))
+        a = random.choice(ones)
+        b = random.choice(zeros)
         mutation = matrix
-        mutation[i,j] = not matrix[i,j]
+        mutation[a] = 0.
+        mutation[b] = 1.
         return mutation
     
     def population_mutation(self):
@@ -125,13 +132,26 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         Interpolates between matrix_1 and matrix_2 by a simple average
         """
         n, m = matrix_1.shape
-        flat_m1 = matrix_1.flatten()
-        flat_m2 = matrix_2.flatten() 
-        index = np.random.choice([i for i in range(1,n)], size=1)[0]
-        cross_over = np.zeros(n*m, dtype=int)
-        cross_over[0:index-1] = flat_m1[0:index-1]
-        cross_over[index:n-1] = flat_m2[index:n-1]
-        cross_over = cross_over.reshape((n,m))
+        ones_a = []
+        zeros_a = []
+        ones_b = []
+        zeros_b = []
+        for i in range(n):
+            for j in range(m):
+                if matrix_1[i,j]:
+                    ones_a.append((i,j))
+                else:
+                    zeros_a.append((i,j))
+                if matrix_2[i,j]:
+                    ones_b.append((i,j))
+                else:
+                    zeros_b.append((i,j))
+        indices = list(set(ones_a + ones_b))
+        cross_over = np.zeros((20, 20))
+        for i in range(20):
+            num = random.randint(0, len(indices)-1)
+            idx = indices.pop(num)
+            cross_over[idx] = 1.
         return cross_over
 
     def population_cross_over(self):
