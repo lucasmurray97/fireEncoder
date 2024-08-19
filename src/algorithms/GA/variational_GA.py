@@ -66,10 +66,9 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         """
         similarity = 0
         if population:
-            for i in population:
-                similarity -=  self.sim_meassure(embedding[0], i[0])
-            
-            return similarity.item()/len(population)
+            stacked = torch.stack(list(zip(*population))[0]).squeeze(1)
+            similarity = self.sim_meassure(embedding[0], stacked) 
+            return similarity.sum().item()/len(population)
         else:
             return 1
     
@@ -91,12 +90,14 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         """
         Generates mutations over whole population
         """
+        t = time.process_time()
         temp = self.population.copy()
         for i in self.population:
             prob = np.random.uniform()
             if prob <= self.mutation_rate:
                 temp.append(self.indiv_mutation(i))
         self.population = temp
+        
     
     def indiv_cross_over(self, embedding_1, embedding_2):
         """

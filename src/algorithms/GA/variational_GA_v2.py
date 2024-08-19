@@ -65,9 +65,9 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         """
         similarity = 0
         if population:
-            for i in population:
-                similarity -= self.sim_meassure(embedding[0], i[0])
-            return similarity.item()/len(population)
+            stacked = torch.stack(list(zip(*population))[0]).squeeze(1)
+            similarity = self.sim_meassure(embedding[0], stacked) 
+            return similarity.sum().item()/len(population)
         else:
             return 1
     
