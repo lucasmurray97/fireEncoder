@@ -14,6 +14,7 @@ import random
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 class Variational_GA_V2(Abstract_Genetic_Algorithm):
 
@@ -77,7 +78,6 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         """
         mu, sigma = embedding
         mu = self.model.latent_sample(mu, sigma)
-        _, sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
     
     def population_mutation(self):
@@ -90,15 +90,16 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
             if prob <= self.mutation_rate:
                 temp.append(self.indiv_mutation(i))
         self.population = temp
+        
     
     def indiv_cross_over(self, embedding_1, embedding_2):
         """
         Interpolates between embedding_1 and embedding_2 by a simple average
         """
-        mu_1, _ =  embedding_1
-        mu_2, _ = embedding_2
+        mu_1, sigma_1 =  embedding_1
+        mu_2, sigma_2 = embedding_2
         interpolation = (mu_1 + mu_2) / 2
-        _, sigma = self.retrieve_sigma(interpolation)
+        sigma = (sigma_1 + sigma_2) / 2
         return (interpolation, sigma)
 
     def population_cross_over(self):

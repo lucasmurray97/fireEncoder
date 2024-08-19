@@ -15,6 +15,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import linalg as LA
+import time
 
 class Vainilla_GA(Abstract_Genetic_Algorithm):
 

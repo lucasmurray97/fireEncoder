@@ -14,6 +14,8 @@ import random
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+
 class Variational_GA_V1(Abstract_Genetic_Algorithm):
 
     def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
@@ -24,6 +26,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
+
     def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates
@@ -65,6 +68,7 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         if population:
             for i in population:
                 similarity -=  self.sim_meassure(embedding[0], i[0])
+            
             return similarity.item()/len(population)
         else:
             return 1
@@ -81,7 +85,6 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         eps = torch.normal(torch.zeros(std.shape))
         sample = mu[0][chosen_dim] + (eps * std)
         mu[0][chosen_dim] = sample
-        _, sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
     
     def population_mutation(self):
@@ -99,10 +102,10 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         """
         Interpolates between embedding_1 and embedding_2 by a simple average
         """
-        mu_1, _ =  embedding_1
-        mu_2, _ = embedding_2
+        mu_1, sigma_1 =  embedding_1
+        mu_2, sigma_2 = embedding_2
         interpolation = (mu_1 + mu_2) / 2
-        _, sigma = self.retrieve_sigma(interpolation)
+        sigma = (sigma_1 + sigma_2) / 2
         return (interpolation, sigma)
 
     def population_cross_over(self):
