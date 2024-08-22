@@ -29,7 +29,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         self.population_size = population_size
         self.initial_population = initial_population
 
-    def calc_fitness(self, solution, n_sims = 10):
+    def calc_fitness(self, solution, n_sims = 50):
         """
         Calculates the average number of burned cells of embedding's associated
         solution.
@@ -49,7 +49,6 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
             for cell in my_data.flatten():
                 if cell == 1.0:
                     reward-= 1
-        erase_firebreaks()
         return 1 + ((reward/n_sims) / 400)
 
     def selection(self):
@@ -175,13 +174,6 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         return False
     
     def get_best(self):
-        fitness = []
-        for i in range(len(self.population)):
-            if i < len(self.valuations):
-                fitness.append(self.valuations[i])
-            else:
-                fitness.append(self.calc_fitness(self.population[i]))
-        index_max = max(range(len(fitness)), key=fitness.__getitem__)
-        print(self.model.decode(self.population[index_max][0]) > 0.5)
-        return index_max
+        index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
+        return self.population[index_max]
     

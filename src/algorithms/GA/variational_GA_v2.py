@@ -126,13 +126,12 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         return False
     
     def get_best(self):
-        fitness = []
-        for i in range(len(self.population)):
-            if i < len(self.valuations):
-                fitness.append(self.valuations[i])
-            else:
-                fitness.append(self.calc_fitness(self.population[i]))
-        index_max = max(range(len(fitness)), key=fitness.__getitem__)
-        print(self.model.decode(self.population[index_max][0]) > 0.5)
-        return index_max
+        index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
+        solution, _ = self.population[index_max]
+        _, indices = torch.topk(solution.flatten(), 20)
+        indices = np.unravel_index(indices, (20, 20))
+        matrix = torch.zeros((20, 20))
+        matrix[indices] = 1.
+        assert(matrix.sum().item() == 20)
+        return matrix
     
