@@ -127,7 +127,8 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
     
     def get_best(self):
         index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
-        solution, _ = self.population[index_max]
+        mu, _ = self.population[index_max]
+        solution = self.model.decode(mu)
         _, indices = torch.topk(solution.flatten(), 20)
         indices = np.unravel_index(indices, (20, 20))
         matrix = torch.zeros((20, 20))

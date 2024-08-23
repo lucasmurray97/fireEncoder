@@ -37,14 +37,14 @@ class Abstract_Genetic_Algorithm:
         self.data.sort(key=lambda x: x[1])
         self.population = self.data[len(self.data)- int(len(self.data) * initial_population) - 1:len(self.data) - 1]
         self.population.reverse()
-        self.valuations = [1 + (i[1]/400) for i in self.population]
+        self.valuations = [i[1] for i in self.population]
         self.population = [self.transform(x) for x in self.population]
         # Adding random solutions
         rest = [i for i in range(0, len(self.data) - int(len(self.data) * initial_population) - 1)]
         sample = np.random.choice(rest, int(len(self.data) * (initial_population)), replace=False)
         for i in sample:
             self.population.append(self.transform(self.data[i]))
-            self.valuations.append(1 + self.data[i][1] / 400)
+            self.valuations.append(self.data[i][1])
         print(len(self.population))
 
     def selection(self, population):
@@ -147,12 +147,12 @@ class Abstract_Genetic_Algorithm:
         plt.close()
         write_firewall_file(best * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 100 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         base_directory = f"../eval/results/Grids/Grids"
         burn_probability = np.zeros((20, 20))
         reward = 0
-        for j in range(1, 100+1):
+        for j in range(1, 50+1):
             dir = f"{base_directory}{str(j)}/"
             files = os.listdir(dir)
             my_data = genfromtxt(dir+files[-1], delimiter=',')
@@ -161,8 +161,7 @@ class Abstract_Genetic_Algorithm:
                     reward-= 1
             my_data = np.where(my_data == -1., 0, my_data )
             burn_probability += my_data
-        print(1 + ((reward/100) / 400))
-        burn_probability = burn_probability / 100
+        burn_probability = burn_probability / 50
         plt.imshow(burn_probability, cmap="Reds")
         plt.colorbar()
         plt.savefig(f"results/bp_{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.png")
