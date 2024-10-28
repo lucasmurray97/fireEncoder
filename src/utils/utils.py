@@ -18,7 +18,7 @@ class MyDataset(torch.utils.data.Dataset):
     self.normalize = normalize
     self.rewards = []
     for i in range(len(self.data)):
-       self.rewards.append(10*self.data[i][1])
+       self.rewards.append(self.data[i][1])
     self.max_reward = max(self.rewards)
     self.min_reward = min(self.rewards)
 
@@ -40,6 +40,7 @@ class MyDataset(torch.utils.data.Dataset):
     for i in normalized_rewards:
        reconstructed.append(i*(self.max_reward - self.min_reward) + self.min_reward)
     return reconstructed
+  
 def to_img(x):
     x = x.clamp(0, 1)
     return x
