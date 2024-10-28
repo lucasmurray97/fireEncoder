@@ -20,23 +20,26 @@ from tqdm import tqdm
 
 
 parser = argparse.ArgumentParser()
+# For VAE
 parser.add_argument('--latent_dim', type=int, required=True)
 parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--network', type=str, default="AE")
 parser.add_argument('--lr1', type=float, default=0.0001)
+parser.add_argument('--weight_decay', type=float, default=0)
+parser.add_argument('--instance', type=str, default="homo_2")
+parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--variational_beta', type=float, default=1)
+parser.add_argument('--distribution_std', type=float, default=1)
+
+# Not for VAE
+parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--lr2', type=float, default=0.0001)
 parser.add_argument('--lr3', type=float, default=0.0001)
 parser.add_argument('--temperature_1', type=float, default = 100)
 parser.add_argument('--temperature_2', type=float, default = 100)
 parser.add_argument('--normalize', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--scale', action=argparse.BooleanOptionalAction, default=True)
-parser.add_argument('--weight_decay', type=float, default=0)
-parser.add_argument('--instance', type=str, default="homo_2")
-parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument('--variational_beta', type=float, default=1)
-parser.add_argument('--distribution_std', type=float, default=1)
-parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 # Params
@@ -60,7 +63,7 @@ not_reduced= args.not_reduced
 variational_beta = args.variational_beta
 distribution_std = args.distribution_std
 
-# Stashin params in a params dictionary
+# Stashing params in a params dictionary
 params = {}
 params["latent_dims"] = args.latent_dim
 params["capacity"] = args.latent_dim//2
@@ -105,14 +108,12 @@ net.to(net.device)
 early_stopper = EarlyStopper(patience=5, min_delta=0.01)
 for epoch in tqdm(range(epochs)):
     for x, r_x in train_loader:
-        # print(r_x)
         net.zero_grad()
         x = x.to(net.device)
         r_x = r_x.to(net.device)
         output = net(x, r_x)
         loss = net.loss(output, x, r_x)
         loss.backward()   
-        # net.show_grads()
         net.step()
         net.n+=1
 
