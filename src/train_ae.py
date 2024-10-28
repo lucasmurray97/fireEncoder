@@ -83,7 +83,7 @@ params["variational_beta"] = variational_beta
 params["distribution_std"] = distribution_std
 
 # Dataset is loaded
-dataset = MyDataset(root=f'../data/complete_random/{instance}/solutions/Sub20x20_full_grid.pkl',
+dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
                              tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
 
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
