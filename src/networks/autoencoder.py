@@ -7,24 +7,28 @@ import torch.nn.functional as F
 import numpy as np
 from matplotlib import pyplot as plt
 class FireAutoencoder(nn.Module):
-    def __init__(self, capacity, input_size, latent_dims, sigmoid=False):
+    def __init__(self, params):
         super(FireAutoencoder, self).__init__()
         self.name = "AE"
-        self.latent_dims = latent_dims
-        self.c = capacity
+        self.instance= params["instance"]
+        self.latent_dims = params["latent_dims"]
+        self.c = params["capacity"]
         kernel_size = 4
         stride = 2
         padding = 1
+        input_size = params["input_size"]
         self.dim_1 = int((input_size - kernel_size + 2*padding)/2 + 1)
         self.dim_2 = int((self.dim_1 - kernel_size + 2*padding)/2 + 1)
+        sigmoid = params["sigmoid"]
         self.is_sigmoid = sigmoid
+        self.lr1 = params["lr1"]
         # Encoder layers:
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding) # (64, 10, 10)
         self.conv2 = nn.Conv2d(in_channels=self.c, out_channels=self.c*2, kernel_size=kernel_size, stride=stride, padding=padding) # (128, 5, 5)
-        self.fc = nn.Linear(in_features=latent_dims*(self.dim_2**2), out_features = latent_dims)
+        self.fc = nn.Linear(in_features=self.latent_dims*(self.dim_2**2), out_features = self.latent_dims)
 
         # Decoder layers:
-        self.fc_2 = nn.Linear(in_features=latent_dims, out_features=latent_dims*(self.dim_2**2))
+        self.fc_2 = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_2**2))
         self.conv1_2 = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv2_2 = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
         if self.is_sigmoid:
@@ -32,13 +36,15 @@ class FireAutoencoder(nn.Module):
             self.criterion = nn.BCELoss()
         else:
             self.criterion = nn.MSELoss()
-        self.device = device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device  = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Inicialización de parámetros:
         nn.init.kaiming_uniform_(self.conv1.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv1_2.weight, mode='fan_in', nonlinearity='relu')
 
+        # Optimizer:
+        self.optimizer = torch.optim.Adam(self.parameters(), lr = self.lr1)
         # Losses holders:
         self.training_loss = []
         self.validation_loss = []
@@ -74,6 +80,11 @@ class FireAutoencoder(nn.Module):
         loss = self.criterion(output, x)
         self.val_epoch_loss += loss.item()
         return loss
+    def step(self):
+        self.optimizer.step()
+    
+    def zero_grad(self):
+        self.optimizer.zero_grad()
     
     def reset_losses(self):
         self.training_loss.append(self.epoch_loss/self.n)
@@ -92,7 +103,7 @@ class FireAutoencoder(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/train_stats/{self.name}/loss_homo_2_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr={self.lr1}.png")
 
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
