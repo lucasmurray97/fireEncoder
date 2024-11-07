@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 import pickle
 from matplotlib import pyplot as plt
-from utils.utils import MyDataset, show_image, visualise_output
+from utils.utils import MyDataset, MyDatasetV2, show_image, visualise_output
 import sys
 sys.path.append("..")
 from networks.autoencoder import FireAutoencoder
@@ -31,6 +31,7 @@ parser.add_argument('--instance', type=str, default="homo_2")
 parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument('--variational_beta', type=float, default=1)
 parser.add_argument('--distribution_std', type=float, default=1)
+parser.add_argument('--data_version', type=int, default=0)
 
 # Not for VAE
 parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
@@ -62,6 +63,7 @@ instance = args.instance
 not_reduced= args.not_reduced
 variational_beta = args.variational_beta
 distribution_std = args.distribution_std
+data_version = args.data_version
 
 # Stashing params in a params dictionary
 params = {}
@@ -86,9 +88,10 @@ params["variational_beta"] = variational_beta
 params["distribution_std"] = distribution_std
 
 # Dataset is loaded
-dataset = MyDataset(root=f'../data/complete_random/{instance}/Sub20x20_full_grid.pkl',
-                             tform=lambda x: torch.from_numpy(x, dtype=torch.float), normalize=normalize)
-
+if data_version == 0:
+    dataset = MyDataset(root=f'../data/complete_random/{instance}/')
+else:
+    dataset = MyDatasetV2(root=f'../data/complete_random/{instance}/')
 train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
 
 # Network is constructed
