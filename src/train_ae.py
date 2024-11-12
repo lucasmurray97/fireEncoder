@@ -14,6 +14,7 @@ from networks.autoencoder import FireAutoencoder
 from networks.autoencoder_reward import FireAutoencoder_reward
 from networks.vae import VAE
 from networks.vae_v2 import VAE_V2
+from networks.ccvae import CCVAE
 from networks.utils import EarlyStopper
 import argparse
 from tqdm import tqdm
@@ -32,6 +33,9 @@ parser.add_argument('--not_reduced', action=argparse.BooleanOptionalAction, defa
 parser.add_argument('--variational_beta', type=float, default=1)
 parser.add_argument('--distribution_std', type=float, default=1)
 parser.add_argument('--data_version', type=int, default=0)
+
+# For CCVAE
+parser.add_argument('--latent_portion', type=float, default=0.5)
 
 # Not for VAE
 parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
@@ -64,6 +68,7 @@ not_reduced= args.not_reduced
 variational_beta = args.variational_beta
 distribution_std = args.distribution_std
 data_version = args.data_version
+latent_portion = args.latent_portion
 
 # Stashing params in a params dictionary
 params = {}
@@ -86,6 +91,7 @@ params["instance"] = args.instance
 params["not_reduced"] = not_reduced
 params["variational_beta"] = variational_beta
 params["distribution_std"] = distribution_std
+params["latent_portion"] = latent_portion
 
 # Dataset is loaded
 if data_version == 0:
@@ -100,6 +106,7 @@ nets = {
     "AE_Reward": FireAutoencoder_reward,
     "VAE": VAE,
     "VAE_V2": VAE_V2,
+    "CCVAE": CCVAE,
 }
 net = nets[network](params = params)
 # Data loader is built
