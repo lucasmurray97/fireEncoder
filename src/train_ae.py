@@ -36,6 +36,8 @@ parser.add_argument('--data_version', type=int, default=0)
 
 # For CCVAE
 parser.add_argument('--latent_portion', type=float, default=0.5)
+parser.add_argument('--alpha', type=float, default=1000)
+
 
 # Not for VAE
 parser.add_argument('--toy', action=argparse.BooleanOptionalAction, default=False)
@@ -69,6 +71,7 @@ variational_beta = args.variational_beta
 distribution_std = args.distribution_std
 data_version = args.data_version
 latent_portion = args.latent_portion
+alpha = args.alpha
 
 # Stashing params in a params dictionary
 params = {}
@@ -92,6 +95,7 @@ params["not_reduced"] = not_reduced
 params["variational_beta"] = variational_beta
 params["distribution_std"] = distribution_std
 params["latent_portion"] = latent_portion
+params["alpha"] = alpha
 
 # Dataset is loaded
 if data_version == 0:
@@ -109,6 +113,8 @@ nets = {
     "CCVAE": CCVAE,
 }
 net = nets[network](params = params)
+# Print number of params
+print(f"Number of parameters: {sum(p.numel() for p in net.parameters())}")
 # Data loader is built
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
@@ -140,7 +146,7 @@ for epoch in tqdm(range(epochs)):
     
 net.plot_loss(epochs)
 
-path_ = f"./weights/{instance}/{network}/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1={temperature_1}_T2={temperature_2}_lr1={lr1}_lr2={lr2}_lr3={lr3}_normalize={normalize}_weight_decay={weight_decay}_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth"
+path_ = f"./weights/{instance}/{network}/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1={temperature_1}_T2={temperature_2}_lr1={lr1}_lr2={lr2}_lr3={lr3}_normalize={normalize}_weight_decay={weight_decay}_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}_alpha={alpha}.pth"
 torch.save(net.state_dict(), path_)
 net.eval()
 full_loader  = torch.utils.data.DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)

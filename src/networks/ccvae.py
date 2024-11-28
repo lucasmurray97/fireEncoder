@@ -24,12 +24,15 @@ class CCVAE(nn.Module):
         sigmoid = params["sigmoid"]
         self.is_sigmoid = sigmoid
         self.lr1 = params["lr1"]
+        self.lr2 = params["lr2"]
         self.not_reduced = params["not_reduced"]
         self.variational_beta = params["variational_beta"]
-        self.device  = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        use_gpu = params["use_gpu"]
+        self.device  = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if use_gpu else 'cpu'
         self.latent_portion = params["latent_portion"]
         self.rec_dim = int(self.latent_dims * (1 - self.latent_portion))
         self.burn_dim = int(self.latent_dims * self.latent_portion)
+        self.alpha = params["alpha"]
         # By default set to training
         self.training =  True
         # Encoder layers:
@@ -41,23 +44,73 @@ class CCVAE(nn.Module):
         self.drop1 = nn.Dropout()
         self.bn2 = nn.BatchNorm2d(self.c*2)
         self.drop2 = nn.Dropout()
+
+        # Group all layers of the encoder in a module
+        self.encoder = nn.Sequential(
+            self.conv1,
+            self.bn1,
+            self.drop1,
+            nn.ReLU(),
+            self.conv2,
+            self.bn2,
+            self.drop2,
+            nn.ReLU(),
+            nn.Flatten()
+        )
+
+        # Group encoder params
+        self.encoder_params = list(self.encoder.parameters()) + list(self.fc_mu.parameters()) + list(self.fc_logvar.parameters())
+
         # Decoder layers:
-        self.fc = nn.Linear(in_features=self.rec_dim, out_features=self.latent_dims*(self.dim_2**2))
+        self.fc = nn.Linear(in_features=self.latent_dims, out_features=self.latent_dims*(self.dim_2**2))
         self.conv1_ = nn.ConvTranspose2d(in_channels=self.c*2, out_channels=self.c, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv2_ = nn.ConvTranspose2d(in_channels=self.c, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
         self.bn1_2 = nn.BatchNorm2d(self.c)
         self.drop1_2 = nn.Dropout()
+
+        # Group all layers of the decoder in a module
+        self.decoder = nn.Sequential(
+            self.fc,
+            nn.ReLU(),
+            nn.Unflatten(1, (self.c*2, self.dim_2, self.dim_2)),
+            self.conv1_,
+            self.bn1_2,
+            self.drop1_2,
+            nn.ReLU(),
+            self.conv2_
+        )
+   
+
         # Burned % predictor:
-        self.fc_r1 = nn.Linear(in_features=self.burn_dim, out_features=64)
-        self.bn_r1 = nn.BatchNorm1d(64)
-        self.fc_r2 = nn.Linear(in_features=64, out_features=1)
+        self.fc_r1 = nn.Linear(in_features=self.burn_dim, out_features=128)
+        self.bn_r1 = nn.BatchNorm1d(128)
+        self.fc_r2 = nn.Linear(in_features=128, out_features=64)
+        self.bn_r2 = nn.BatchNorm1d(64)
+        self.fc_r4 = nn.Linear(in_features=64, out_features=1)
+
+        # Group all layers of the burned % predictor in a module
+        self.burned_predictor = nn.Sequential(
+            self.fc_r1,
+            self.bn_r1,
+            nn.ReLU(),
+            self.fc_r2,
+            self.bn_r2,
+            nn.ReLU(),
+            self.fc_r4
+        )
         # Inicialización de parámetros:
         nn.init.kaiming_uniform_(self.conv1.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv1_.weight, mode='fan_in', nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2_.weight, mode='fan_in', nonlinearity='relu')
+
+        # Divide parameters for the vae and the regression task
+        self.vae_params = list(self.encoder_params) + list(self.decoder.parameters())
+        self.r_params = list(self.burned_predictor.parameters())
+
         # Optimizer:
-        self.optimizer = torch.optim.Adam(self.parameters(), lr = self.lr1)
+        self.optimizer_1 = torch.optim.Adam(self.vae_params, lr = self.lr1)
+        self.optimizer_2 = torch.optim.Adam(self.r_params, lr = self.lr2)
         # Loss function:
         self.criterion_vae = nn.BCELoss() if self.is_sigmoid else nn.MSELoss()
         self.criterion_r = nn.MSELoss()
@@ -84,32 +137,22 @@ class CCVAE(nn.Module):
         self.last_logvar = None
         
     def encode(self, x):
-        x = self.bn1(self.conv1(x))
-        x = self.drop1(F.relu(x))
-        x = self.bn2(self.conv2(x))
-        x = self.drop2(F.relu(x))
-        x = x.view(x.size(0), -1) # flatten batch of multi-channel feature maps to a batch of feature vectors
+        # Encoder
+        x = self.encoder(x)
         x_mu = self.fc_mu(x)
-        x_logvar = self.fc_logvar(x)
+        x_logvar = self.fc_logvar(x)   
         return x_mu, x_logvar
 
     def decode(self, x):
-        # Half of the embedding is used for the reconstruction
-        x = x[:, :self.rec_dim]
+        # The full embedding is used for the reconstruction
         # Decoder
-        x = self.fc(x)
-        x = x.view(x.size(0), self.c*2, self.dim_2, self.dim_2) # unflatten batch of feature vectors to a batch of multi-channel feature maps
-        x = self.bn1_2(self.conv1_(x))
-        x = self.drop1_2(F.relu(x))
-        x = torch.sigmoid(self.conv2_(x)) if self.is_sigmoid else F.relu(self.conv2_(x)) # last layer before output is sigmoid, since we are using BCE as reconstruction loss
-        return x
+        x = self.decoder(x)
+        return torch.sigmoid(x) if self.is_sigmoid else x
     
     def predict_burned(self, x):
-        # The other half of the embedding is used for the burned % prediction
+        # Half of the embedding is used for the burned % prediction
         x = x[:, self.rec_dim:]
-        x = self.fc_r1(x)
-        x = self.bn_r1(F.relu(x))
-        r = torch.sigmoid(self.fc_r2(x))
+        r = torch.sigmoid(self.burned_predictor(x))
         return r
     
     def forward(self, x, r):
@@ -150,7 +193,7 @@ class CCVAE(nn.Module):
         # (the one we are going to sample from when generating new images)
         # and the distribution estimated by the generator for the given image.
         kldivergence = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        reward_loss = self.criterion_r(pred_r, r)
+        reward_loss = self.criterion_r(pred_r, r) * self.alpha
         return recon_loss, kldivergence, reward_loss, recon_loss + self.variational_beta * kldivergence + reward_loss
 
     def loss(self, output, x, r):
@@ -175,10 +218,12 @@ class CCVAE(nn.Module):
         return loss
         
     def step(self):
-        self.optimizer.step()
+        self.optimizer_1.step()
+        self.optimizer_2.step()
     
     def zero_grad(self):
-        self.optimizer.zero_grad()
+        self.optimizer_1.zero_grad()
+        self.optimizer_2.zero_grad()
 
     def reset_losses(self):
         self.training_loss.append(self.epoch_loss/self.n)
@@ -209,7 +254,7 @@ class CCVAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_lr2={self.lr2}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}_alpha={self.alpha}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -218,7 +263,7 @@ class CCVAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/reconstruction_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/reconstruction_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_lr2={self.lr2}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}_alpha={self.alpha}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -227,7 +272,7 @@ class CCVAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/divergence_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/divergence_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_lr2={self.lr2}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}_alpha={self.alpha}.png")
 
         plt.ion()
         fig = plt.figure()
@@ -236,7 +281,7 @@ class CCVAE(nn.Module):
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/burned_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}.png")
+        plt.savefig(f"experiments/{self.instance}/train_stats/{self.name}/burned_loss_sub20x20_latent={self.latent_dims}_capacity={self.c}_{epochs}_sigmoid={self.is_sigmoid}_lr1={self.lr1}_lr2={self.lr2}_not_reduced={self.not_reduced}_variational_beta={self.variational_beta}_distribution_std={self.distribution_std}_alpha={self.alpha}.png")
         
     def calc_test_loss(self, output, images, r):
         return self.loss(output, images, r)
