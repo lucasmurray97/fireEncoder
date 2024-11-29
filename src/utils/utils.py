@@ -103,9 +103,9 @@ class MyDatasetV2(torch.utils.data.Dataset):
     valuation: float Tensor
     """
     # We load solution
-    firebreaks = torch.from_numpy(np.expand_dims((self.data[i][0] < 0).astype('float32'), axis=0))
+    firebreaks = torch.from_numpy(np.expand_dims((self.data[i][0] > 0).astype('float32'), axis=0))
     # We generate a tensor of solution + landscape
-    data = torch.cat([firebreaks, self.landscape], dim=0)
+    data = torch.cat([firebreaks, self.landscape], dim=0).float()
     return data, torch.Tensor([self.rewards[i]])
   
 
