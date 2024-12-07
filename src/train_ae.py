@@ -102,8 +102,7 @@ if data_version == 0:
     dataset = MyDataset(root=f'../data/complete_random/{instance}/')
 else:
     dataset = MyDatasetV2(root=f'../data/complete_random/{instance}/')
-train_dataset, validation_dataset, test_dataset =torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
-
+train_dataset, validation_dataset, test_dataset = torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05], generator=torch.Generator().manual_seed(42))
 # Network is constructed
 nets = {
     "AE": FireAutoencoder,
@@ -119,6 +118,7 @@ print(f"Number of parameters: {sum(p.numel() for p in net.parameters())}")
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
 validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=16, shuffle=False)
 test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=16, shuffle=False)
+
 # Training Loop
 net.to(net.device)
 early_stopper = EarlyStopper(patience=5, min_delta=0.01)

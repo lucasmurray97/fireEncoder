@@ -87,7 +87,7 @@ class CCVAE(nn.Module):
         self.fc_r2 = nn.Linear(in_features=128, out_features=64)
         self.bn_r2 = nn.BatchNorm1d(64)
         self.fc_r4 = nn.Linear(in_features=64, out_features=1)
-
+        
         # Group all layers of the burned % predictor in a module
         self.burned_predictor = nn.Sequential(
             self.fc_r1,
