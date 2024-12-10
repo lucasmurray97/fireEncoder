@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import json
+import codecs
+from torchvision.transforms import Normalize
 class Abstract_Genetic_Algorithm:
     """
     Super class of all genetic algorithms to be implemented.
@@ -27,6 +29,55 @@ class Abstract_Genetic_Algorithm:
             self.data = pickle.load(f)
         self.population = []
         self.valuations = []
+        # storing rewards seperately
+        self.rewards = []
+        for i in range(len(self.data)):
+            self.rewards.append(self.data[i][1])
+        
+        # Directory with landscape information
+        self.landscape_dir = f"{self.root}/Sub20x20"
+
+        # Loads elevation .asc into a numpy array
+        with codecs.open(f'{self.landscape_dir}/elevation.asc', encoding='utf-8-sig', ) as f:
+            line = "_"
+            elevation = []
+            while line:
+                line = f.readline()
+                line_list = line.split()
+                if len(line_list) > 2:
+                    elevation.append([float(i) for i in line_list])
+        elevation = np.array(elevation)
+
+        # Loads slope .asc into a numpy array
+        with codecs.open(f'{self.landscape_dir}/slope.asc', encoding='utf-8-sig', ) as f:
+            line = "_"
+            slope = []
+            while line:
+                line = f.readline()
+                line_list = line.split()
+                if len(line_list) > 2:
+                    slope.append([float(i) for i in line_list])
+        slope = np.array(slope)
+
+        # Loads elevation .saz into a numpy array
+        with codecs.open(f'{self.landscape_dir}/saz.asc', encoding='utf-8-sig', ) as f:
+            line = "_"
+            saz = []
+            while line:
+                line = f.readline()
+                line_list = line.split()
+                if len(line_list) > 2:
+                    saz.append([float(i) for i in line_list])
+        saz = np.array(saz)
+
+        # Stacks array into a tensor, generating a landscape tensor
+        self.landscape = torch.from_numpy(np.stack([elevation, slope, saz]))
+        # We compute means + std per channel to normalize
+        means = torch.mean(self.landscape, dim=(1,2))
+        stds = torch.std(self.landscape, dim=(1,2))
+        norm = Normalize(means, stds)
+        # Normalizes landscape
+        self.landscape = norm(self.landscape)
 
     def initialize_population(self, initial_population = 0.01):
         """
@@ -55,6 +106,7 @@ class Abstract_Genetic_Algorithm:
         Calculates the average number of burned cells of embedding's associated
         solution.
         """
+
         solution = self.model.decode(embedding[0])
         _, indices = torch.topk(solution.flatten(), 20)
         indices = np.unravel_index(indices, (20, 20))

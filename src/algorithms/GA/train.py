@@ -1,12 +1,15 @@
 from abstract_ga import Abstract_Genetic_Algorithm
 from variational_GA import Variational_GA_V1
 from variational_GA_v2 import Variational_GA_V2
+from variational_GA_ccvae import Variational_GA_V1_CCVAE
+from variational_GA_v2_ccvae import Variational_GA_V2_CCVAE
 from vainilla_ga import Vainilla_GA
 import torch
 import sys
 import argparse
 sys.path.append("../../")
 from networks.vae import VAE
+from networks.ccvae import CCVAE
 parser = argparse.ArgumentParser()
 parser.add_argument('--algorithm', type=str, required=True)
 parser.add_argument('--n_repeats', type=int, required=True)
@@ -17,6 +20,7 @@ parser.add_argument('--mutation_rate', type=float, required=True)
 parser.add_argument('--iters', type=int, required=True, default = 100)
 parser.add_argument('--variational_beta', type=float, default=1)
 parser.add_argument('--distribution_std', type=float, default=1)
+parser.add_argument('--net', type=str, default="vae")
 
 args = parser.parse_args()
 # Params
@@ -29,6 +33,7 @@ alpha = args.alpha
 mutation_rate = args.mutation_rate
 variational_beta = args.variational_beta
 distribution_std = args.distribution_std
+network = args.net
 iters = args.iters
 latent_dims = 256
 capacity = latent_dims//2
@@ -46,19 +51,31 @@ params = {
     "sigmoid": sigmoid,
     "instance": instance,
     "lr1": lr1,
+    "lr2": lr1,
     "not_reduced": not_reduced,
     "variational_beta": variational_beta,
     "distribution_std": distribution_std,
+    "use_gpu": True,
+    "latent_portion": 0.5,
+    "alpha": 1e5,
 }
 
-
-net = VAE(params)
-net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
-method = None
-if algorithm == "v1":
+if network == "vae" and algorithm == "v1":
+    net = VAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
     method = Variational_GA_V1(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
-elif algorithm == "v2":
+elif network == "vae" and algorithm == "v2":
+    net = VAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
     method = Variational_GA_V2(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+elif network == "ccvae" and algorithm == "v1":
+    net = CCVAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+    method = Variational_GA_V1_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+elif network == "ccvae" and algorithm == "v2":
+    net = CCVAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+    method = Variational_GA_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 else:
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 
