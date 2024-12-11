@@ -3,6 +3,8 @@ from variational_GA import Variational_GA_V1
 from variational_GA_v2 import Variational_GA_V2
 from variational_GA_ccvae import Variational_GA_V1_CCVAE
 from variational_GA_v2_ccvae import Variational_GA_V2_CCVAE
+from variational_GA_md_ccvae import Variational_GA_MD_CCVAE
+from variational_GA_gd_ccvae import Variational_GA_GD_CCVAE
 from vainilla_ga import Vainilla_GA
 import torch
 import sys
@@ -76,6 +78,14 @@ elif network == "ccvae" and algorithm == "v2":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
     method = Variational_GA_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+elif network == "ccvae" and algorithm == "md":
+    net = CCVAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+    method = Variational_GA_MD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+elif network == "ccvae" and algorithm == "gd":
+    net = CCVAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+    method = Variational_GA_GD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 else:
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 
