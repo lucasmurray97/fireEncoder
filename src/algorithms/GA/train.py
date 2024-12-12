@@ -5,6 +5,7 @@ from variational_GA_ccvae import Variational_GA_V1_CCVAE
 from variational_GA_v2_ccvae import Variational_GA_V2_CCVAE
 from variational_GA_md_ccvae import Variational_GA_MD_CCVAE
 from variational_GA_gd_ccvae import Variational_GA_GD_CCVAE
+from variational_GA_cd_ccvae import Variational_GA_CD_CCVAE
 from vainilla_ga import Vainilla_GA
 import torch
 import sys
@@ -23,6 +24,9 @@ parser.add_argument('--iters', type=int, required=True, default = 100)
 parser.add_argument('--variational_beta', type=float, default=1)
 parser.add_argument('--distribution_std', type=float, default=1)
 parser.add_argument('--net', type=str, default="vae")
+parser.add_argument('--gradient_step', type=int, default=2)
+parser.add_argument('--cond_thresh', type=float, default=0.75)
+
 
 args = parser.parse_args()
 # Params
@@ -37,6 +41,8 @@ variational_beta = args.variational_beta
 distribution_std = args.distribution_std
 network = args.net
 iters = args.iters
+gradient_step = args.gradient_step
+cond_thresh = args.cond_thresh
 latent_dims = 256
 capacity = latent_dims//2
 input_size = 20
@@ -60,6 +66,8 @@ params = {
     "use_gpu": True,
     "latent_portion": 0.5,
     "alpha": 1e5,
+    "gradient_step": gradient_step,
+    "cond_thresh": cond_thresh
 }
 
 if network == "vae" and algorithm == "v1":
@@ -86,6 +94,10 @@ elif network == "ccvae" and algorithm == "gd":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
     method = Variational_GA_GD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+elif network == "ccvae" and algorithm == "cd":
+    net = CCVAE(params)
+    net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+    method = Variational_GA_CD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 else:
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 

@@ -26,6 +26,8 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
         self.alpha = alpha
         self.population_size = population_size
         self.initial_population = initial_population
+        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
+
     def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates

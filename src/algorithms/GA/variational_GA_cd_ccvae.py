@@ -20,14 +20,15 @@ import time
 
 class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, cond_thresh=0.75) -> None:
         super().__init__(model, instance)
         self.name = "VA_GA_CD_CCVAE"
         self.alpha = alpha
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
-        self.threshold = 0.76
+        self.threshold = cond_thresh
+        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}_threshold={self.threshold}"
 
 
     def indiv_mutation(self, embedding):

@@ -26,6 +26,7 @@ class Variational_GA_V1_CCVAE(Variational_GA_V1):
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
+        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
 
 
     def transform(self, x):

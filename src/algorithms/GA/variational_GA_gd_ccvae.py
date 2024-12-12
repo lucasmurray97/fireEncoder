@@ -20,13 +20,15 @@ import time
 
 class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, gradient_step=2) -> None:
         super().__init__(model, instance)
         self.name = "VA_GA_GD_CCVAE"
         self.alpha = alpha
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
+        self.gradient_step = gradient_step
+        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}_gradient_step={self.gradient_step}"
 
 
     def indiv_mutation(self, embedding):
@@ -37,8 +39,7 @@ class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
         latent = torch.tensor(mu[0, 128:]).clone().detach().unsqueeze(0).requires_grad_(True)
         latent_fixed = torch.tensor(mu[0, :128]).clone().detach().unsqueeze(0)
         self.optimizer = torch.optim.Adam([latent], lr=1e-1)
-        steps = 20
-        for i in range(20):
+        for i in range(self.gradient_step):
             full_latent = torch.cat([latent_fixed, latent], dim=1)
             self.optimizer.zero_grad()
             loss = -self.model.predict_burned(full_latent)

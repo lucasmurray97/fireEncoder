@@ -167,9 +167,9 @@ class Abstract_Genetic_Algorithm:
                 avg[j].append(sum(self.valuations)/len(self.valuations))
                 print(f"Current avg. score: {sum(self.valuations)/len(self.valuations)}, max valuation: {max_}")
         print("--------------Training stoped------------------")
-        with open(f'results/best__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.json', 'w') as f:
+        with open(f'results/best__{self.name}_{n_iter}_{self.params}.json', 'w') as f:
             json.dump(best, f)
-        with open(f'results/avg__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.json', 'w') as f:
+        with open(f'results/avg__{self.name}_{n_iter}_{self.params}.json', 'w') as f:
            json.dump(avg, f)
         x = [i for i in range(n_iter)]
         best_mean = [0 for i in range(n_iter)]
@@ -191,11 +191,11 @@ class Abstract_Genetic_Algorithm:
         plt.plot(x, avg_mean, lw=2, label="Avg solution", color="red")
         plt.fill_between(x, [avg_mean[i] + avg_std[i] for i in range(n_iter)], [avg_mean[i] - avg_std[i] for i in range(n_iter)], facecolor='red', alpha=0.2)
         plt.legend()
-        plt.savefig(f'results/plot__{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.png')
+        plt.savefig(f'results/plot__{self.name}_{n_iter}_{self.params}.png')
         plt.close()
         best = self.get_best()
         plt.imshow(best)
-        plt.savefig(f"results/best_{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.png")
+        plt.savefig(f"results/best_{self.name}_{n_iter}_{self.params}.png")
         plt.close()
         write_firewall_file(best * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
@@ -216,6 +216,6 @@ class Abstract_Genetic_Algorithm:
         burn_probability = burn_probability / 50
         plt.imshow(burn_probability, cmap="Reds")
         plt.colorbar()
-        plt.savefig(f"results/bp_{self.name}_{n_iter}_{self.alpha}_{self.mutation_rate}_{self.population_size}_{self.initial_population}.png")
+        plt.savefig(f"results/bp_{self.name}_{n_iter}_{self.params}.png")
 
         
