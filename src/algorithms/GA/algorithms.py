@@ -154,6 +154,22 @@ class Abstract_Genetic_Algorithm:
     def stop_criteria(self):
         pass
 
+    def fine_tune(self):
+        """
+        Fine-tunes the model with the current population.
+        """
+        print("--------------Fine-tuning started------------------")
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        for i in tqdm(range(100)):
+            for embedding in self.population:
+                optimizer.zero_grad()
+                mu, sigma = embedding
+                loss = self.model.loss(mu, sigma)
+                loss.backward()
+                optimizer.step()
+        print("--------------Fine-tuning stoped------------------")
+
     def train(self, n_iter = 1000, n_repeats=1):
         print("--------------Training started------------------")
         best = {}
@@ -386,19 +402,17 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
         return self.population[index_max]
     
-
-class Variational_GA_V1(Abstract_Genetic_Algorithm):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
+class Variational_GA(Abstract_Genetic_Algorithm):
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5) -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
-        self.name = "VA_GA_V1"
+        self.name = "VA_GA"
         self.alpha = alpha
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
         self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
-
+    
     def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates
@@ -431,7 +445,6 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         self.population = selected
         return selected
 
-
     def compute_similarity(self, embedding, population):
         """
         Computes the average cosine similarity between embedding and current selected population
@@ -444,7 +457,58 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         else:
             return 1
     
+    def indiv_cross_over(self, embedding_1, embedding_2):
+        """
+        Interpolates between embedding_1 and embedding_2 by a simple average
+        """
+        mu_1, sigma_1 =  embedding_1
+        mu_2, sigma_2 = embedding_2
+        interpolation = (mu_1 + mu_2) / 2
+        sigma = (sigma_1 + sigma_2) / 2
+        return (interpolation, sigma)
 
+    def population_cross_over(self):
+        """
+        Applies indiv_cross_over to population
+        """
+        temp = self.population.copy()
+        while(len(temp) > 1):
+            parent_1 = temp.pop(random.randrange(len(temp)))
+            parent_2 = temp.pop(random.randrange(len(temp)))
+            offspring = self.indiv_cross_over(parent_1, parent_2)
+            self.population.append(offspring)
+    
+    def transform(self, x):
+        return self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))
+                
+    def retrieve_sigma(self, embedding):
+        """
+        Retrieves sigma associated with an embedding
+        """
+        return self.model.encode(self.model.decode(embedding))
+
+    def stop_criteria(self):
+        return False
+    
+    def get_best(self):
+        index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
+        mu, _ = self.population[index_max]
+        solution = self.model.decode(mu)
+        _, indices = torch.topk(solution.flatten(), 20)
+        indices = np.unravel_index(indices, (20, 20))
+        matrix = torch.zeros((20, 20))
+        matrix[indices] = 1.
+        assert(matrix.sum().item() == 20)
+        return matrix
+
+class Variational_GA_V1(Variational_GA):
+
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5) -> None:
+        # super().__init__(model, instance)
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
+        self.name = "VA_GA_V1"
+
+    
     def indiv_mutation(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
@@ -471,109 +535,12 @@ class Variational_GA_V1(Abstract_Genetic_Algorithm):
         self.population = temp
         
     
-    def indiv_cross_over(self, embedding_1, embedding_2):
-        """
-        Interpolates between embedding_1 and embedding_2 by a simple average
-        """
-        mu_1, sigma_1 =  embedding_1
-        mu_2, sigma_2 = embedding_2
-        interpolation = (mu_1 + mu_2) / 2
-        sigma = (sigma_1 + sigma_2) / 2
-        return (interpolation, sigma)
 
-    def population_cross_over(self):
-        """
-        Applies indiv_cross_over to population
-        """
-        temp = self.population.copy()
-        while(len(temp) > 1):
-            parent_1 = temp.pop(random.randrange(len(temp)))
-            parent_2 = temp.pop(random.randrange(len(temp)))
-            offspring = self.indiv_cross_over(parent_1, parent_2)
-            self.population.append(offspring)
-        
-    def transform(self, x):
-        return self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))
-                
-    def retrieve_sigma(self, embedding):
-        """
-        Retrieves sigma associated with an embedding
-        """
-        return self.model.encode(self.model.decode(embedding))
+class Variational_GA_V2(Variational_GA):
 
-    def stop_criteria(self):
-        return False
-    
-    def get_best(self):
-        index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
-        mu, _ = self.population[index_max]
-        solution = self.model.decode(mu)
-        _, indices = torch.topk(solution.flatten(), 20)
-        indices = np.unravel_index(indices, (20, 20))
-        matrix = torch.zeros((20, 20))
-        matrix[indices] = 1.
-        assert(matrix.sum().item() == 20)
-        return matrix
-    
-
-
-class Variational_GA_V2(Abstract_Genetic_Algorithm):
-
-    def __init__(self, model, instance="homo_2", alpha = 0.5, mutation_rate = 0.2, population_size=50, initial_population = 0.01) -> None:
-        super().__init__(model, instance)
-        self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
+    def __init__(self, model, instance="homo_2", alpha = 0.5, mutation_rate = 0.2, population_size=50, initial_population = 0.01, lr=1e-5) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_V2"
-        self.mutation_rate = mutation_rate
-        self.alpha = alpha
-        self.population_size = population_size
-        self.initial_population = initial_population
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
-
-    def selection(self):
-        """
-        Selects population_size elements from current population by computing a score that ponderates
-        fitness and diversity.
-        """
-        selected = []
-        fitness = []
-        scores = []
-        chosen = self.population_size
-        for i in range(len(self.population)):
-            if i < len(self.valuations):
-                fitness.append(self.valuations[i])
-            else:
-                fitness.append(self.calc_fitness(self.population[i]))
-        index_max = max(range(len(fitness)), key=fitness.__getitem__)
-        selected.append(self.population[index_max])
-        scores.append(fitness[index_max])
-        self.population.pop(index_max)
-        first = fitness.pop(index_max)
-        chosen -= 1
-        self.valuations = [first]
-        while(chosen):
-            combined = [self.alpha * fitness[i] + (1-self.alpha) * self.compute_similarity(self.population[i], selected) / 100 for i in range(len(self.population))]
-            index_max = max(range(len(combined)), key=combined.__getitem__)
-            selected.append(self.population[index_max])
-            self.population.pop(index_max)
-            self.valuations.append(fitness.pop(index_max))
-            scores.append(combined[index_max])
-            chosen -= 1
-        self.population = selected
-        return selected
-
-
-    def compute_similarity(self, embedding, population):
-        """
-        Computes the average cosine similarity between embedding and current selected population
-        """
-        similarity = 0
-        if population:
-            stacked = torch.stack(list(zip(*population))[0]).squeeze(1)
-            similarity = self.sim_meassure(embedding[0], stacked) 
-            return similarity.sum().item()/len(population)
-        else:
-            return 1
-    
 
     def indiv_mutation(self, embedding):
         """
@@ -593,63 +560,15 @@ class Variational_GA_V2(Abstract_Genetic_Algorithm):
             if prob <= self.mutation_rate:
                 temp.append(self.indiv_mutation(i))
         self.population = temp
-        
     
-    def indiv_cross_over(self, embedding_1, embedding_2):
-        """
-        Interpolates between embedding_1 and embedding_2 by a simple average
-        """
-        mu_1, sigma_1 =  embedding_1
-        mu_2, sigma_2 = embedding_2
-        interpolation = (mu_1 + mu_2) / 2
-        sigma = (sigma_1 + sigma_2) / 2
-        return (interpolation, sigma)
 
-    def population_cross_over(self):
-        """
-        Applies indiv_cross_over to population
-        """
-        temp = self.population.copy()
-        while(len(temp) > 1):
-            parent_1 = temp.pop(random.randrange(len(temp)))
-            parent_2 = temp.pop(random.randrange(len(temp)))
-            offspring = self.indiv_cross_over(parent_1, parent_2)
-            self.population.append(offspring)
-    
-    def transform(self, x):
-        return self.model.encode(torch.Tensor(x[0]).unsqueeze(0).unsqueeze(0))
-                
-    def retrieve_sigma(self, embedding):
-        """
-        Retrieves sigma associated with an embedding
-        """
-        return self.model.encode(self.model.decode(embedding))
-
-    def stop_criteria(self):
-        return False
-    
-    def get_best(self):
-        index_max = max(range(len(self.valuations)), key=self.valuations.__getitem__)
-        mu, _ = self.population[index_max]
-        solution = self.model.decode(mu)
-        _, indices = torch.topk(solution.flatten(), 20)
-        indices = np.unravel_index(indices, (20, 20))
-        matrix = torch.zeros((20, 20))
-        matrix[indices] = 1.
-        assert(matrix.sum().item() == 20)
-        return matrix
     
 
 class Variational_GA_V1_CCVAE(Variational_GA_V1):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_V1_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
 
 
     def transform(self, x):
@@ -669,14 +588,9 @@ class Variational_GA_V1_CCVAE(Variational_GA_V1):
 
 class Variational_GA_V2_CCVAE(Variational_GA_V2):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_V2_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
 
     def transform(self, x):
         x = x[0][np.newaxis, :, :]
@@ -696,15 +610,11 @@ class Variational_GA_V2_CCVAE(Variational_GA_V2):
 
 class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, cond_thresh=0.75) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, cond_thresh=0.75) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_CD_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
         self.threshold = cond_thresh
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}_threshold={self.threshold}"
+        self.params += f"_cond_thresh={cond_thresh}"
 
 
     def indiv_mutation(self, embedding):
@@ -732,15 +642,11 @@ class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, gradient_step=2) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, gradient_step=2) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_GD_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
         self.gradient_step = gradient_step
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}_gradient_step={self.gradient_step}"
+        self.params += f"_gradient_step={gradient_step}"
 
 
     def indiv_mutation(self, embedding):
@@ -763,15 +669,11 @@ class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, gradient_step=2) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, gradient_step=2) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_GD_V2_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
         self.gradient_step = gradient_step
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}_gradient_step={self.gradient_step}"
+        self.params += f"_gradient_step={gradient_step}"
 
 
     def indiv_mutation(self, embedding):
@@ -794,14 +696,9 @@ class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_MD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01) -> None:
-        super().__init__(model, instance)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr)
         self.name = "VA_GA_MD_CCVAE"
-        self.alpha = alpha
-        self.mutation_rate = mutation_rate
-        self.population_size = population_size
-        self.initial_population = initial_population
-        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
 
         self.argmax = np.argmax(self.rewards)
         self.argmin = np.argmin(self.rewards)
