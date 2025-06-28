@@ -55,7 +55,7 @@ def generate_reward(n_sims=100):
     solution.
     """
     n_weathers = len([i for i in os.listdir("homo_2/Sub20x20/Weathers/") if i.endswith('.csv')])-2
-    exec_str = f"../../src/algorithms/eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ./homo_2/Sub20x20/ --output-folder ./homo_2/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 0.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ./homo_2/harvested/HarvestedCells.csv"
+    exec_str = f"../../src/algorithms/eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ./homo_2/Sub20x20/ --output-folder ./homo_2/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 1.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ./homo_2/harvested/HarvestedCells.csv"
     os.system(exec_str + " >/dev/null 2>&1")
     reward = 0
     base_directory = f"./homo_2/results/Grids/Grids"
@@ -96,6 +96,6 @@ def generate_solutions_complete(observations,n_sims = 100):
     file = open(f"{absolute_path}/homo_2/solutions/Sub20x20_full_grid.pkl", 'rb')    
     n_r = pickle.load(file)
     print(len(n_r))
-
-generate_solutions_complete(50000)
+if __name__ == "__main__":
+    generate_solutions_complete(50000)
 

@@ -1,19 +1,22 @@
-from abstract_ga import Abstract_Genetic_Algorithm
-from variational_GA import Variational_GA_V1
-from variational_GA_v2 import Variational_GA_V2
-from variational_GA_ccvae import Variational_GA_V1_CCVAE
-from variational_GA_v2_ccvae import Variational_GA_V2_CCVAE
-from variational_GA_md_ccvae import Variational_GA_MD_CCVAE
-from variational_GA_gd_ccvae import Variational_GA_GD_CCVAE
-from variational_GA_gd_v2_ccvae import Variational_GA_GD_V2_CCVAE
-from variational_GA_cd_ccvae import Variational_GA_CD_CCVAE
-from vainilla_ga import Vainilla_GA
 import torch
 import sys
 import argparse
+from algorithms import (
+    Variational_GA_V1,
+    Variational_GA_V2,
+    Variational_GA_V1_CCVAE,
+    Variational_GA_V2_CCVAE,
+    Variational_GA_MD_CCVAE,
+    Variational_GA_GD_CCVAE,
+    Variational_GA_GD_V2_CCVAE,
+    Variational_GA_CD_CCVAE,
+    Vainilla_GA,
+)
 sys.path.append("../../")
 from networks.vae import VAE
 from networks.ccvae import CCVAE
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--algorithm', type=str, required=True)
 parser.add_argument('--n_repeats', type=int, required=True)
@@ -104,6 +107,7 @@ elif network == "ccvae" and algorithm == "cd":
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
     method = Variational_GA_CD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, cond_thresh=cond_thresh)
 else:
+    net = None
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
 
 method.train(n_iter=iters, n_repeats=n_repeats)
