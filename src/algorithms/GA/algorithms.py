@@ -228,22 +228,10 @@ class Abstract_Genetic_Algorithm:
         plt.imshow(burn_probability, cmap="Reds")
         plt.colorbar()
         plt.savefig(f"results/bp_{self.name}_{n_iter}_{self.params}.png")
+        plt.close()
 
     def fine_tune(self):
-        """
-        Fine-tunes the model with the current population.
-        """
-        print("--------------Fine-tuning started------------------")
-        self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        for i in tqdm(range(self.epochs)):
-            for embedding in self.population:
-                optimizer.zero_grad()
-                mu, sigma = embedding
-                loss = self.model.loss(mu, sigma)
-                loss.backward()
-                optimizer.step()
-        print("--------------Fine-tuning stoped------------------")
+        pass
 
         
 
@@ -258,6 +246,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         self.mutation_rate = mutation_rate
         self.population_size = population_size
         self.initial_population = initial_population
+        self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
 
     def calc_fitness(self, solution, n_sims = 50):
         """
@@ -408,7 +397,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         return self.population[index_max]
     
 class Variational_GA(Abstract_Genetic_Algorithm):
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
         self.name = "VA_GA"
@@ -419,6 +408,7 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         self.params = f"alpha={self.alpha}_mutation_rate={self.mutation_rate}_population_size={self.population_size}_initial_population={self.initial_population}"
         self.lr = lr
         self.epochs = epochs
+        self.finetune = finetune
 
     def selection(self):
         """
@@ -507,12 +497,34 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         matrix[indices] = 1.
         assert(matrix.sum().item() == 20)
         return matrix
+    
+    def fine_tune(self):
+        """
+        Fine-tunes the model with the current population.
+        """
+        self.model.to(self.model.device)
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        # create dataloader
+        with torch.no_grad():
+            embeddings = [self.model.decode(embedding[0].to(self.model.device)) for embedding in self.population]
+        embeddings = torch.stack(embeddings).squeeze(1)
+        dataset = torch.utils.data.TensorDataset(embeddings)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+        for i in tqdm(range(self.epochs)):
+            for x in dataloader:
+                optimizer.zero_grad()
+                x_recon = self.model(x[0], None)
+                loss = self.model.loss(x_recon, x[0], None)
+                loss.backward()
+                optimizer.step()
+        self.model.to('cpu')
+        self.model.eval()
 
 class Variational_GA_V1(Variational_GA):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1) -> None:
-        # super().__init__(model, instance)
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_V1"
 
     
@@ -545,8 +557,8 @@ class Variational_GA_V1(Variational_GA):
 
 class Variational_GA_V2(Variational_GA):
 
-    def __init__(self, model, instance="homo_2", alpha = 0.5, mutation_rate = 0.2, population_size=50, initial_population = 0.01, lr=1e-5, epochs=1) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha = 0.5, mutation_rate = 0.2, population_size=50, initial_population = 0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_V2"
 
     def indiv_mutation(self, embedding):
@@ -573,8 +585,8 @@ class Variational_GA_V2(Variational_GA):
 
 class Variational_GA_V1_CCVAE(Variational_GA_V1):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_V1_CCVAE"
 
 
@@ -595,8 +607,8 @@ class Variational_GA_V1_CCVAE(Variational_GA_V1):
 
 class Variational_GA_V2_CCVAE(Variational_GA_V2):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_V2_CCVAE"
 
     def transform(self, x):
@@ -617,8 +629,8 @@ class Variational_GA_V2_CCVAE(Variational_GA_V2):
 
 class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, cond_thresh=0.75) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, cond_thresh=0.75) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_CD_CCVAE"
         self.threshold = cond_thresh
         self.params += f"_cond_thresh={cond_thresh}"
@@ -649,8 +661,8 @@ class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, gradient_step=2) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, gradient_step=2) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_GD_CCVAE"
         self.gradient_step = gradient_step
         self.params += f"_gradient_step={gradient_step}"
@@ -676,8 +688,8 @@ class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, gradient_step=2) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, gradient_step=2) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_GD_V2_CCVAE"
         self.gradient_step = gradient_step
         self.params += f"_gradient_step={gradient_step}"
@@ -703,8 +715,8 @@ class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
 
 class Variational_GA_MD_CCVAE(Variational_GA_V1_CCVAE):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs)
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.name = "VA_GA_MD_CCVAE"
 
         self.argmax = np.argmax(self.rewards)

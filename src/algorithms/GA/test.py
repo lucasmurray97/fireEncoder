@@ -41,15 +41,12 @@ net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={laten
 # except:
 #     pass
 
-try:
-    a = Variational_GA_V1(net, initial_population=0.01)
-    a.initialize_population(initial_population=0.001)
-    a.train(n_iter=10)
-except:
-    pass
+a = Variational_GA_V1(net, initial_population=0.01, finetune=True)
+a.initialize_population(initial_population=0.001)
+a.train(n_iter=10)
 
 try:
-    a = Variational_GA_V2(net, initial_population=0.01)
+    a = Variational_GA_V2(net, initial_population=0.01, finetune=True)
     a.initialize_population(initial_population=0.001)
     a.train(n_iter=10)
 except:
