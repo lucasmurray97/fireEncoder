@@ -30,7 +30,9 @@ parser.add_argument('--distribution_std', type=float, default=1)
 parser.add_argument('--net', type=str, default="vae")
 parser.add_argument('--gradient_step', type=int, default=2)
 parser.add_argument('--cond_thresh', type=float, default=0.75)
-
+parser.add_argument('--finetune', action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument('--lr', type=float, default=1e-5)
+parser.add_argument('--epochs_ft', type=int, default=1)
 
 args = parser.parse_args()
 # Params
@@ -47,6 +49,9 @@ network = args.net
 iters = args.iters
 gradient_step = args.gradient_step
 cond_thresh = args.cond_thresh
+finetune = args.finetune
+lr = args.lr
+epochs_ft = args.epochs_ft
 latent_dims = 256
 capacity = latent_dims//2
 input_size = 20
@@ -77,35 +82,35 @@ params = {
 if network == "vae" and algorithm == "v1":
     net = VAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_V1(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+    method = Variational_GA_V1(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "vae" and algorithm == "v2":
     net = VAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_V2(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+    method = Variational_GA_V2(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "v1":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_V1_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+    method = Variational_GA_V1_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "v2":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+    method = Variational_GA_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "md":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_MD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
+    method = Variational_GA_MD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "gd":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_GD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, gradient_step=gradient_step)
+    method = Variational_GA_GD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, gradient_step=gradient_step, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "gd_v2":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_GD_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, gradient_step=gradient_step)
+    method = Variational_GA_GD_V2_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, gradient_step=gradient_step, finetune=finetune, lr=lr, epochs=epochs_ft)
 elif network == "ccvae" and algorithm == "cd":
     net = CCVAE(params)
     net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
-    method = Variational_GA_CD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, cond_thresh=cond_thresh)
+    method = Variational_GA_CD_CCVAE(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population, cond_thresh=cond_thresh, finetune=finetune, lr=lr, epochs=epochs_ft)
 else:
     net = None
     method = Vainilla_GA(net, alpha=alpha, mutation_rate=mutation_rate, population_size=population_size, initial_population=initial_population)
