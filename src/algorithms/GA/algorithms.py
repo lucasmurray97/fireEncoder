@@ -15,6 +15,7 @@ import time
 from numpy import linalg as LA
 import random
 from torch import nn
+from copy import deepcopy
 
 
 class Abstract_Genetic_Algorithm:
@@ -27,8 +28,12 @@ class Abstract_Genetic_Algorithm:
             - setups de model
             - setups path to data and loads it
         """
-        self.model = model
-        self.model.eval()
+        if model:
+            self.model = model
+            self.initial_state = deepcopy(model.state_dict())
+            self.model.eval()
+        else:
+            self.model = None
         # Placeholders
         self.finetune = False
         self.lr = None
@@ -124,7 +129,7 @@ class Abstract_Genetic_Algorithm:
         assert(matrix.sum().item() == 20)
         write_firewall_file(matrix * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -162,6 +167,9 @@ class Abstract_Genetic_Algorithm:
         best = {}
         avg = {}
         for j in tqdm(range(n_repeats)):
+            ### Re-initialize model
+            if self.model:
+                self.model.load_state_dict(self.initial_state)
             self.initialize_population(self.initial_population)
             best[j] = []
             avg[j] = []
@@ -210,7 +218,7 @@ class Abstract_Genetic_Algorithm:
         plt.close()
         write_firewall_file(best * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         base_directory = f"../eval/results/Grids/Grids"
         burn_probability = np.zeros((20, 20))
@@ -256,7 +264,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         assert(solution.sum() == 20)
         write_firewall_file(solution * -1)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -397,10 +405,10 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         return self.population[index_max]
     
 class Variational_GA(Abstract_Genetic_Algorithm):
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1") -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
-        self.name = "VA_GA"
+        self.name = "VA_GA_V" + str(strategy)
         self.alpha = alpha
         self.mutation_rate = mutation_rate
         self.population_size = population_size
@@ -409,6 +417,9 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         self.lr = lr
         self.epochs = epochs
         self.finetune = finetune
+        self.strategy = strategy
+        if self.finetune:
+            self.params += f"_finetune={self.finetune}_lr={self.lr}_epochs={self.epochs}"
 
     def selection(self):
         """
@@ -521,14 +532,15 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         self.model.to('cpu')
         self.model.eval()
 
-class Variational_GA_V1(Variational_GA):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_V1"
-
-    
     def indiv_mutation(self, embedding):
+        if self.strategy == "v1":
+            self.indiv_mutation_v1(embedding)
+        elif self.strategy == "v2":
+            self.indiv_mutation_v2(embedding)
+        else:
+            raise(f"Mutation strategy: {self.strategy} not implemented")
+    
+    def indiv_mutation_v1(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
         """
@@ -541,27 +553,7 @@ class Variational_GA_V1(Variational_GA):
         mu[0][chosen_dim] = sample
         return (mu, sigma)
     
-    def population_mutation(self):
-        """
-        Generates mutations over whole population
-        """
-        t = time.process_time()
-        temp = self.population.copy()
-        for i in self.population:
-            prob = np.random.uniform()
-            if prob <= self.mutation_rate:
-                temp.append(self.indiv_mutation(i))
-        self.population = temp
-        
-    
-
-class Variational_GA_V2(Variational_GA):
-
-    def __init__(self, model, instance="homo_2", alpha = 0.5, mutation_rate = 0.2, population_size=50, initial_population = 0.01, lr=1e-5, epochs=1, finetune=False) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_V2"
-
-    def indiv_mutation(self, embedding):
+    def indiv_mutation_v2(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
         """
@@ -579,64 +571,91 @@ class Variational_GA_V2(Variational_GA):
             if prob <= self.mutation_rate:
                 temp.append(self.indiv_mutation(i))
         self.population = temp
-    
+        
 
     
 
-class Variational_GA_V1_CCVAE(Variational_GA_V1):
+class Variational_CCVAE(Variational_GA):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1", steps=1, cond_thresh=0.75) -> None:
         super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_V1_CCVAE"
-
-
-    def transform(self, x):
-        x = x[0][np.newaxis, :, :]
-        x = np.concatenate([x, self.landscape], axis=0)
-        return self.model.encode(torch.Tensor(x).unsqueeze(0))
-                
-    def retrieve_sigma(self, embedding):
-        """
-        Retrieves sigma associated with an embedding
-        """
-        sol = self.model.decode(embedding)
-        sol = np.concatenate([sol, self.landscape], axis=0)
-        return self.model.encode(sol)
-
-
-
-class Variational_GA_V2_CCVAE(Variational_GA_V2):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_V2_CCVAE"
-
-    def transform(self, x):
-        x = x[0][np.newaxis, :, :]
-        x = np.concatenate([x, self.landscape], axis=0)
-        return self.model.encode(torch.Tensor(x).unsqueeze(0))
-                
-    def retrieve_sigma(self, embedding):
-        """
-        Retrieves sigma associated with an embedding
-        """
-        sol = self.model.decode(embedding)
-        sol = np.concatenate([sol, self.landscape], axis=0)
-        return self.model.encode(sol)
-
-    
-
-
-class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, cond_thresh=0.75) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_CD_CCVAE"
+        self.steps = steps
         self.threshold = cond_thresh
-        self.params += f"_cond_thresh={cond_thresh}"
+        self.strategy = strategy
+        self.name = f"VA_GA_CCVAE_" + self.strategy
+        if self.strategy in ["gd1",  "gd2", "md"]:
+            params += f"_steps={steps}"
+        elif self.strategy == "cond_sampling":
+            self.params += f"_cond_thresh={cond_thresh}"
 
+    def transform(self, x):
+        x = x[0][np.newaxis, :, :]
+        x = np.concatenate([x, self.landscape], axis=0)
+        return self.model.encode(torch.Tensor(x).unsqueeze(0))
+
+    def pre_forward(self, embedding):
+        """
+        Decodes embedding and appends landscape to dim=0, to which
+        the model can forward
+        """
+        solution = self.model.decode(embedding)[None, :, :]
+        solution = np.concatenate([solution, self.landscape], axis=0)
+        return solution
+    
+    def retrieve_sigma(self, embedding):
+        """
+        Retrieves sigma associated with an embedding
+        """
+        x = self.model.decode(embedding).detach()[0]
+        x = np.concatenate([x, self.landscape], axis=0).astype(np.float32)
+        _, sigma = self.model.encode(torch.from_numpy(x).unsqueeze(0))
+        return sigma
+    
+    def fine_tune(self):
+        """
+        Fine-tunes the model with the current population.
+        """
+        self.model.to(self.model.device)
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        # create dataloader
+        valuations = []
+        inputs = []
+        with torch.no_grad():
+            for i in range(len(self.population)):
+                inputs.append(self.pre_forward(self.population[i]))
+                valuations.append(self.valuations[i])
+        inputs = torch.stack(inputs).squeeze(1)
+        valuations = torch.stack(valuations).squeeze(1)
+        dataset = torch.utils.data.TensorDataset(inputs, valuations)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+        for i in tqdm(range(self.epochs)):
+            for x, r in dataloader:
+                optimizer.zero_grad()
+                x_recon = self.model(x[0], r)
+                loss = self.model.loss(x_recon, x[0], r)
+                loss.backward()
+                optimizer.step()
+        self.model.to('cpu')
+        self.model.eval()
 
     def indiv_mutation(self, embedding):
+        if self.strategy == "v1":
+            self.indiv_mutation_v1(embedding)
+        elif self.strategy == "v2":
+            self.indiv_mutation_v2(embedding)
+        elif self.strategy == "cond_sampling":
+            self.indiv_mutation_cs(embedding)
+        elif self.strategy == "gd1":
+            self.indiv_mutation_gd1(embedding)
+        elif self.strategy == "gd2":
+            self.indiv_mutation_gd2(embedding)
+        elif self.strategy == "md":
+            self.indiv_mutation_md(embedding)
+        else:
+            raise(f"Mutation strategy: {self.strategy} not implemented")
+
+    def indiv_mutation_cs(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
         """
@@ -648,27 +667,8 @@ class Variational_GA_CD_CCVAE(Variational_GA_V1_CCVAE):
             y = self.model.predict_burned(z)
         sigma = self.retrieve_sigma(z)
         return (z, sigma)
-
-    def retrieve_sigma(self, embedding):
-        """
-        Retrieves sigma associated with an embedding
-        """
-        x = self.model.decode(embedding).detach()[0]
-        x = np.concatenate([x, self.landscape], axis=0).astype(np.float32)
-        mu, sigma = self.model.encode(torch.from_numpy(x).unsqueeze(0))
-        return sigma
-
-
-class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, gradient_step=2) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_GD_CCVAE"
-        self.gradient_step = gradient_step
-        self.params += f"_gradient_step={gradient_step}"
-
-
-    def indiv_mutation(self, embedding):
+    
+    def indiv_mutation_gd1(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
         """
@@ -676,26 +676,17 @@ class Variational_GA_GD_CCVAE(Variational_GA_V1_CCVAE):
         latent = torch.tensor(mu[0, 128:]).clone().detach().unsqueeze(0).requires_grad_(True)
         latent_fixed = torch.tensor(mu[0, :128]).clone().detach().unsqueeze(0)
         self.optimizer = torch.optim.Adam([latent], lr=1e-1)
-        for i in range(self.gradient_step):
+        for i in range(self.steps):
             full_latent = torch.cat([latent_fixed, latent], dim=1)
             self.optimizer.zero_grad()
             loss = -self.model.predict_burned(full_latent)
             loss.backward()
             self.optimizer.step()
         mu = full_latent.detach()
+        sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
 
-
-class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, gradient_step=2) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_GD_V2_CCVAE"
-        self.gradient_step = gradient_step
-        self.params += f"_gradient_step={gradient_step}"
-
-
-    def indiv_mutation(self, embedding):
+    def indiv_mutation_gd2(self, embedding):
         """
         Generates a mutation by sampling from N(mu, sigma)
         """
@@ -711,32 +702,27 @@ class Variational_GA_GD_V2_CCVAE(Variational_GA_V1_CCVAE):
             self.optimizer.step()
         mu, sigma = self.transform(self.model.decode(full_latent).detach()[0])
         return (mu, sigma)
-
-
-class Variational_GA_MD_CCVAE(Variational_GA_V1_CCVAE):
-
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False) -> None:
-        super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
-        self.name = "VA_GA_MD_CCVAE"
-
-        self.argmax = np.argmax(self.rewards)
-        self.argmin = np.argmin(self.rewards)
-        self.max = self.transform(self.data[self.argmax])[0]
-        self.min = self.transform(self.data[self.argmin])[0]
-        # Compute direction between max and min
-        self.max_dir = self.max - self.min
-        self.max_dir /= torch.norm(self.max_dir)
-        
-
-
-    def indiv_mutation(self, embedding):
+    
+    def indiv_mutation_md(self, embedding):
         """
-        Generates a mutation by sampling from N(mu, sigma)
+        Generates by moving into the max direction
         """
         mu, sigma = embedding
-        steps = 10
-        mu += self.max_dir * 10 
+        self.steps = 10
+        max_dir = self.compute_max_dir(embedding)
+        mu += max_dir * self.steps
+        sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
 
-    
+    def compute_max_dir(self, embedding):
+        """
+        Computes direction between max element in population and 
+        the embedding
+        """
+        max_index = np.argmax(self.valuations)
+        max_embedding = self.population[max_index]
+        max_dir = max_embedding - embedding
+        max_dir /= torch.norm(max_dir)
+        return max_dir
+
     
