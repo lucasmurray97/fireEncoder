@@ -129,7 +129,7 @@ class Abstract_Genetic_Algorithm:
         assert(matrix.sum().item() == 20)
         write_firewall_file(matrix * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -218,7 +218,7 @@ class Abstract_Genetic_Algorithm:
         plt.close()
         write_firewall_file(best * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         base_directory = f"../eval/results/Grids/Grids"
         burn_probability = np.zeros((20, 20))
@@ -264,7 +264,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         assert(solution.sum() == 20)
         write_firewall_file(solution * -1)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -534,9 +534,9 @@ class Variational_GA(Abstract_Genetic_Algorithm):
 
     def indiv_mutation(self, embedding):
         if self.strategy == "v1":
-            self.indiv_mutation_v1(embedding)
+            return self.indiv_mutation_v1(embedding)
         elif self.strategy == "v2":
-            self.indiv_mutation_v2(embedding)
+            return self.indiv_mutation_v2(embedding)
         else:
             raise(f"Mutation strategy: {self.strategy} not implemented")
     
@@ -641,17 +641,17 @@ class Variational_CCVAE(Variational_GA):
 
     def indiv_mutation(self, embedding):
         if self.strategy == "v1":
-            self.indiv_mutation_v1(embedding)
+            return self.indiv_mutation_v1(embedding)
         elif self.strategy == "v2":
-            self.indiv_mutation_v2(embedding)
+            return self.indiv_mutation_v2(embedding)
         elif self.strategy == "cond_sampling":
-            self.indiv_mutation_cs(embedding)
+            return self.indiv_mutation_cs(embedding)
         elif self.strategy == "gd1":
-            self.indiv_mutation_gd1(embedding)
+            return self.indiv_mutation_gd1(embedding)
         elif self.strategy == "gd2":
-            self.indiv_mutation_gd2(embedding)
+            return self.indiv_mutation_gd2(embedding)
         elif self.strategy == "md":
-            self.indiv_mutation_md(embedding)
+            return self.indiv_mutation_md(embedding)
         else:
             raise(f"Mutation strategy: {self.strategy} not implemented")
 
