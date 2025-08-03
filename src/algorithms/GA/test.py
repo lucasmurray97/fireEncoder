@@ -1,13 +1,14 @@
 from algorithms import (
     Abstract_Genetic_Algorithm,
-    Variational_GA_V1,
-    Variational_GA_V2,
-    Vainilla_GA
+    Vainilla_GA,
+    Variational_GA,
+    Variational_GA_CCVAE
 )
 import torch
 import sys
 sys.path.append("../../")
 from networks.vae import VAE
+from networks.ccvae import CCVAE
 
 latent_dims = 256
 capacity = latent_dims//2
@@ -27,24 +28,31 @@ params = {
     "sigmoid": sigmoid,
     "instance": instance,
     "lr1": lr1,
+    "lr2": 1e-3,
     "not_reduced": not_reduced,
     "variational_beta": variational_beta,
     "distribution_std": distribution_std,
+    "lr1": lr1,
+    "lr2": lr1,
+    "use_gpu": True,
+    "latent_portion": 0.5,
+    "alpha": 1e5,
+    "steps": 1,
+    "cond_thresh": 0.7,
 }
-net = VAE(params)
-print(net.training)
-net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
+
 # a = Vainilla_GA(net, initial_population=0.001)
 # a.train(n_iter=10)
 
 # a = Variational_GA_V1(net, initial_population=0.001)
 # a.train(n_iter=10)
-
-# a = Variational_GA_V1(net, initial_population=0.001, finetune=True)
-# a.train(n_iter=10)
-
-a = Variational_GA_V2(net, initial_population=0.001)
+net = VAE(params)
+net.load_state_dict(torch.load(f'../../weights/homo_2/VAE/sub20x20_latent={latent_dims}_capacity={capacity}_{epochs}_sigmoid={sigmoid}_T1=100_T2=100_lr1={lr1}_lr2=0.0001_lr3=0.0001_normalize=False_weight_decay=0_not_reduced={not_reduced}_variational_beta={variational_beta}_distribution_std={distribution_std}.pth', map_location=torch.device('cpu') ))
+a = Variational_GA(net, initial_population=0.001, finetune=True, strategy="v1")
 a.train(n_iter=10)
 
-a = Variational_GA_V2(net, initial_population=0.001, finetune=True)
+net = CCVAE(params)
+net.load_state_dict(torch.load(f'../../weights/homo_2/CCVAE/sub20x20_latent=256_capacity=128_100_sigmoid=True_T1=100_T2=100_lr1=1e-05_lr2=1e-05_lr3=0.0001_normalize=False_weight_decay=0_not_reduced=False_variational_beta=0.1_distribution_std=0.2_alpha=100000.0.pth', map_location=torch.device('cpu') ))
+
+a = Variational_GA_CCVAE(net, initial_population=0.001, finetune=True)
 a.train(n_iter=10)

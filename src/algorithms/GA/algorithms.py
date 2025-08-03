@@ -115,6 +115,9 @@ class Abstract_Genetic_Algorithm:
     def selection(self, population):
         pass
 
+    def compute_scores(self):
+        pass
+
     def calc_fitness(self, embedding, n_sims = 50):
         """
         Calculates the average number of burned cells of embedding's associated
@@ -153,10 +156,10 @@ class Abstract_Genetic_Algorithm:
     def compute_similarity(self, embedding, population):
         pass
 
-    def mutation(self, embedding):
+    def population_mutation(self, embedding):
         pass
 
-    def cross_over(self, embedding_1, embedding_2):
+    def population_cross_over(self, embedding_1, embedding_2):
         pass
 
     def stop_criteria(self):
@@ -176,6 +179,7 @@ class Abstract_Genetic_Algorithm:
             for i in tqdm(range(n_iter)):
                 self.population_cross_over()
                 self.population_mutation()
+                self.compute_scores()
                 if self.finetune:
                     self.fine_tune()
                 self.selection()
@@ -278,20 +282,23 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
                     reward-= 1
         return 1 + ((reward/n_sims) / 400)
 
+    def compute_scores(self):
+        for i in range(len(self.population)):
+            if i < len(self.valuations):
+                continue
+            else:
+                self.valuations.append(self.calc_fitness(self.population[i]))   
+
+
     def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates
         fitness and diversity.
         """
         selected = []
-        fitness = []
         scores = []
         chosen = self.population_size
-        for i in range(len(self.population)):
-            if i < len(self.valuations):
-                fitness.append(self.valuations[i])
-            else:
-                fitness.append(self.calc_fitness(self.population[i]))   
+        fitness = self.valuations.copy()
         index_max = max(range(len(fitness)), key=fitness.__getitem__)
         selected.append(self.population[index_max])
         scores.append(fitness[index_max])
@@ -421,20 +428,22 @@ class Variational_GA(Abstract_Genetic_Algorithm):
         if self.finetune:
             self.params += f"_finetune={self.finetune}_lr={self.lr}_epochs={self.epochs}"
 
+    def compute_scores(self):
+        for i in range(len(self.population)):
+            if i < len(self.valuations):
+                continue
+            else:
+                self.valuations.append(self.calc_fitness(self.population[i]))   
+
     def selection(self):
         """
         Selects population_size elements from current population by computing a score that ponderates
         fitness and diversity.
         """
         selected = []
-        fitness = []
         scores = []
         chosen = self.population_size
-        for i in range(len(self.population)):
-            if i < len(self.valuations):
-                fitness.append(self.valuations[i])
-            else:
-                fitness.append(self.calc_fitness(self.population[i]))
+        fitness = self.valuations.copy()
         index_max = max(range(len(fitness)), key=fitness.__getitem__)
         selected.append(self.population[index_max])
         scores.append(fitness[index_max])
@@ -575,7 +584,7 @@ class Variational_GA(Abstract_Genetic_Algorithm):
 
     
 
-class Variational_CCVAE(Variational_GA):
+class Variational_GA_CCVAE(Variational_GA):
 
     def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1", steps=1, cond_thresh=0.75) -> None:
         super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
@@ -595,11 +604,26 @@ class Variational_CCVAE(Variational_GA):
 
     def pre_forward(self, embedding):
         """
-        Decodes embedding and appends landscape to dim=0, to which
-        the model can forward
+        Decodes embedding and appends landscape to dim=0,
+        ensuring everything is on the same device.
         """
-        solution = self.model.decode(embedding)[None, :, :]
-        solution = np.concatenate([solution, self.landscape], axis=0)
+        # Decode embedding to tensor
+        solution = self.model.decode(
+            embedding[0].to(self.model.device)
+        ).squeeze(0)
+
+        # Ensure landscape is a tensor on the same device
+        if not torch.is_tensor(self.landscape):
+            landscape_tensor = torch.from_numpy(self.landscape)
+        else:
+            landscape_tensor = self.landscape
+
+        # Match dtype and device
+        landscape_tensor = landscape_tensor.to(device=self.model.device, dtype=solution.dtype)
+
+        # Concatenate
+        solution = torch.cat([solution, landscape_tensor], dim=0)
+
         return solution
     
     def retrieve_sigma(self, embedding):
@@ -624,7 +648,7 @@ class Variational_CCVAE(Variational_GA):
         with torch.no_grad():
             for i in range(len(self.population)):
                 inputs.append(self.pre_forward(self.population[i]))
-                valuations.append(self.valuations[i])
+                valuations.append(torch.tensor(self.valuations[i]).to(self.model.device).unsqueeze(0))
         inputs = torch.stack(inputs).squeeze(1)
         valuations = torch.stack(valuations).squeeze(1)
         dataset = torch.utils.data.TensorDataset(inputs, valuations)
@@ -632,8 +656,8 @@ class Variational_CCVAE(Variational_GA):
         for i in tqdm(range(self.epochs)):
             for x, r in dataloader:
                 optimizer.zero_grad()
-                x_recon = self.model(x[0], r)
-                loss = self.model.loss(x_recon, x[0], r)
+                output = self.model(x, r)
+                loss = self.model.loss(output, x, r.unsqueeze(1))
                 loss.backward()
                 optimizer.step()
         self.model.to('cpu')
