@@ -132,7 +132,7 @@ class Abstract_Genetic_Algorithm:
         assert(matrix.sum().item() == 20)
         write_firewall_file(matrix * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -222,7 +222,7 @@ class Abstract_Genetic_Algorithm:
         plt.close()
         write_firewall_file(best * -1.)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims 50 --Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         base_directory = f"../eval/results/Grids/Grids"
         burn_probability = np.zeros((20, 20))
@@ -268,7 +268,7 @@ class Vainilla_GA(Abstract_Genetic_Algorithm):
         assert(solution.sum() == 20)
         write_firewall_file(solution * -1)
         n_weathers = len([i for i in os.listdir(self.root+"Sub20x20/Weathers/") if i.endswith('.csv')])-2
-        exec_str = f"../eval/C2F-W/Cell2FireC/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
+        exec_str = f"../eval/C2F-W/Cell2Fire/Cell2Fire --input-instance-folder ../../../data/complete_random/homo_2/Sub20x20/ --output-folder ../eval/results/ --sim-years 1 --nsims {n_sims}--Fire-Period-Length 1.0 --output-messages --ROS-CV 2.0 --seed 123 --weather random --ignitions --IgnitionRad 4 --sim C --final-grid --nweathers {n_weathers} --FirebreakCells ../eval/harvested/HarvestedCells.csv"
         os.system(exec_str + " >/dev/null 2>&1")
         reward = 0
         base_directory = f"../eval/results/Grids/Grids"
@@ -415,7 +415,7 @@ class Variational_GA(Abstract_Genetic_Algorithm):
     def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1") -> None:
         super().__init__(model, instance)
         self.sim_meassure = nn.CosineSimilarity(dim=1, eps=1e-6)
-        self.name = "VA_GA_V" + str(strategy)
+        self.name = "VA_GA_" + str(strategy)
         self.alpha = alpha
         self.mutation_rate = mutation_rate
         self.population_size = population_size
@@ -530,7 +530,7 @@ class Variational_GA(Abstract_Genetic_Algorithm):
             embeddings = [self.model.decode(embedding[0].to(self.model.device)) for embedding in self.population]
         embeddings = torch.stack(embeddings).squeeze(1)
         dataset = torch.utils.data.TensorDataset(embeddings)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, drop_last=True)
         for i in tqdm(range(self.epochs)):
             for x in dataloader:
                 optimizer.zero_grad()
@@ -652,11 +652,12 @@ class Variational_GA_CCVAE(Variational_GA):
         inputs = torch.stack(inputs).squeeze(1)
         valuations = torch.stack(valuations).squeeze(1)
         dataset = torch.utils.data.TensorDataset(inputs, valuations)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, drop_last=True)
         for i in tqdm(range(self.epochs)):
             for x, r in dataloader:
                 optimizer.zero_grad()
                 output = self.model(x, r)
+                print(x.shape, output[0].shape, output[1].shape)
                 loss = self.model.loss(output, x, r.unsqueeze(1))
                 loss.backward()
                 optimizer.step()
