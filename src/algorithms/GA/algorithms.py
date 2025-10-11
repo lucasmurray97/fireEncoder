@@ -586,14 +586,16 @@ class Variational_GA(Abstract_Genetic_Algorithm):
 
 class Variational_GA_CCVAE(Variational_GA):
 
-    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1", steps=1, cond_thresh=0.75) -> None:
+    def __init__(self, model, instance="homo_2", alpha=0.5, mutation_rate = 0.2, population_size=50, initial_population=0.01, lr=1e-5, epochs=1, finetune=False, strategy = "v1", steps=1, cond_thresh=0.75, eta_mut=0.1, trust_R=None) -> None:
         super().__init__(model, instance, alpha, mutation_rate, population_size, initial_population, lr, epochs, finetune)
         self.steps = steps
         self.threshold = cond_thresh
         self.strategy = strategy
+        self.eta_mut = eta_mut
+        self.trust_R = trust_R
         self.name = f"VA_GA_CCVAE_" + self.strategy
         if self.strategy in ["gd1",  "gd2", "md"]:
-            params += f"_steps={steps}"
+            self.params += f"_steps={steps}_eta={self.eta_mut}_trust_R={self.trust_R}"
         elif self.strategy == "cond_sampling":
             self.params += f"_cond_thresh={cond_thresh}"
 
@@ -657,7 +659,6 @@ class Variational_GA_CCVAE(Variational_GA):
             for x, r in dataloader:
                 optimizer.zero_grad()
                 output = self.model(x, r)
-                print(x.shape, output[0].shape, output[1].shape)
                 loss = self.model.loss(output, x, r.unsqueeze(1))
                 loss.backward()
                 optimizer.step()
@@ -698,15 +699,29 @@ class Variational_GA_CCVAE(Variational_GA):
         Generates a mutation by sampling from N(mu, sigma)
         """
         mu, sigma = embedding
-        latent = torch.tensor(mu[0, 128:]).clone().detach().unsqueeze(0).requires_grad_(True)
-        latent_fixed = torch.tensor(mu[0, :128]).clone().detach().unsqueeze(0)
-        self.optimizer = torch.optim.Adam([latent], lr=1e-1)
-        for i in range(self.steps):
-            full_latent = torch.cat([latent_fixed, latent], dim=1)
-            self.optimizer.zero_grad()
-            loss = -self.model.predict_burned(full_latent)
+        latent_fixed = mu[:, :128].detach()
+        latent_free  = mu[:, 128:].detach().clone().requires_grad_(True)
+        prev_latent = latent_free.detach().clone()   # center for step 1
+        optimizer = torch.optim.Adam([latent_free], lr=self.eta_mut)
+        for _ in range(self.steps):
+            full_latent = torch.cat([latent_fixed, latent_free], dim=1)
+            optimizer.zero_grad(set_to_none=True)
+            score = self.model.predict_burned(full_latent)   # maximize this
+            loss = -score                                           # maximize score
             loss.backward()
-            self.optimizer.step()
+            optimizer.step()
+
+            # trust region / projection
+            if self.trust_R:
+                with torch.no_grad():
+                    delta = latent_free - prev_latent                          # displacement from last step
+                    dnorm = delta.norm(p=2, dim=1, keepdim=True)
+                    scale = (self.trust_R / (dnorm + 1e-8)).clamp(max=1.0)
+                    latent_free.copy_(prev_latent + delta * scale)             # projection to L2 ball around prev_latent
+
+                    # update rolling center for the next iteration
+                    prev_latent = latent_free.detach().clone()
+        full_latent = torch.cat([latent_fixed, latent_free], dim=1)
         mu = full_latent.detach()
         sigma = self.retrieve_sigma(mu)
         return (mu, sigma)
@@ -719,7 +734,7 @@ class Variational_GA_CCVAE(Variational_GA):
         latent = torch.tensor(mu[0, 128:]).clone().detach().unsqueeze(0).requires_grad_(True)
         latent_fixed = torch.tensor(mu[0, :128]).clone().detach().unsqueeze(0)
         self.optimizer = torch.optim.Adam([latent], lr=1e-1)
-        for i in range(self.gradient_step):
+        for i in range(self.steps):
             full_latent = torch.cat([latent_fixed, latent], dim=1)
             self.optimizer.zero_grad()
             loss = -self.model.predict_burned(full_latent)
