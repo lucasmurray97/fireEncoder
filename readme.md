@@ -4,6 +4,7 @@ FireEncoder is a research project that aims at combining latent representations 
 
 ## Project structure:
 
+```
 ├── data/                         # Datasets
 ├── src/                          # Source code
 │   ├── algorithms/               # Source code for search algorithms
@@ -13,6 +14,7 @@ FireEncoder is a research project that aims at combining latent representations 
 │   ├── networks/                 # Architecture definitions for generative models
 │   ├── utils/                    # Training utilities for generative models
 │   └── train_ae.py               # Entry point to train generative models (VAE, CCVAE)
+```
 
 ## Installation
 
