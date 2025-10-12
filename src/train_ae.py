@@ -20,8 +20,9 @@ import argparse
 from tqdm import tqdm
 
 
+# SCRIPT THAT TRAINS VAE/CCVAE
+
 parser = argparse.ArgumentParser()
-# For VAE
 parser.add_argument('--latent_dim', type=int, required=True)
 parser.add_argument('--epochs', type=int, required=True, default = 100)
 parser.add_argument('--sigmoid', action=argparse.BooleanOptionalAction, default=False)

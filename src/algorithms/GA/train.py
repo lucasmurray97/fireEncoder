@@ -10,6 +10,7 @@ sys.path.append("../../")
 from networks.vae import VAE
 from networks.ccvae import CCVAE
 
+### SCRIPT THAT LAUNCHS GENETIC ALGO TRAINING
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--algorithm', type=str, required=True)
