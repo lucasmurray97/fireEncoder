@@ -17,7 +17,7 @@ from networks.vae_v2 import VAE_V2
 from networks.ccvae import CCVAE
 from networks.ccvae_v2 import CCVAE_V2
 from networks.utils import EarlyStopper
-from networks.utils import correlation_check, fitness_fn
+from networks.utils import correlation_check, fitness_fn, reconstruction_metrics
 import argparse
 from tqdm import tqdm
 
@@ -192,5 +192,6 @@ if network in ["CCVAE", "CCVAE_V2"]:
         modes=("prior", "agg"),
         plot=True
 )
+    reconstruction_metrics(net, dataset=dataset, max_samples=2048)
 
 

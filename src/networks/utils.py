@@ -1,13 +1,16 @@
 import os, numpy as np
 import torch
-import torch.nn.functional as F
 from scipy.stats import spearmanr
 from numpy import genfromtxt
 import matplotlib.pyplot as plt
 import sys
 sys.path.append("../")
 from src.algorithms.GA.utils import write_firewall_file, erase_firebreaks
-import json
+import os, json, numpy as np
+import torch
+from torchmetrics.classification import Accuracy, Precision, Recall, F1Score
+from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError, R2Score, MeanAbsolutePercentageError
+
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -176,57 +179,101 @@ def correlation_on_manifold(ccvae_model, dataset, max_n=4000, batch_size=256, de
         plt.savefig(f"experiments/homo_2/train_stats/{ccvae_model.name}/correlation_score_manifold_{ccvae_model._params_tag()}.png")
     return dict(rho=float(rho), p=float(p), n=int(N))
 
-# ====== reconstruction diagnostics ======
+
 @torch.no_grad()
-def reconstruction_metrics(ccvae_model, dataset, max_n=2000, batch_size=256, device="cuda", topk: int = 20):
+def reconstruction_metrics(ccvae_model,
+                                 dataset,
+                                 max_samples: int = 45000,
+                                 topk: int = 20,
+                                 threshold: float = 0.5,
+                                 save_path: str = None):
     """
-    Computes recon BCE(mean), MSE(mean), and top-k selection overlap/Jaccard
-    between target map (x[:,0]) and reconstruction decode(μ(x)).
-    Returns a dict of averages.
+    For each (x, r) in `dataset`:
+      1) ŷ_map = model(x)[0]  -> build a binary top-K mask from ŷ_map
+      2) Update binary map metrics (Accuracy/Precision/Recall/F1) vs target mask x[:,0]
+      3) Update regression metrics (MSE/MAE/R2/MAPE) on predicted scalar r̂ vs r
+      4) Accumulate BCE(recon, target) and top-K overlap/Jaccard
+
+    Saves a JSON with keys exactly as requested.
     """
     ccvae_model.eval()
-    N = min(max_n, len(dataset))
-    idx = np.random.default_rng(0).choice(len(dataset), size=N, replace=False)
+    dev = next(ccvae_model.parameters()).device
+    ccvae_model.to()
+    # ---- metrics on correct device ----
+    acc  = Accuracy(task="binary", threshold=threshold).to(dev)
+    prec = Precision(task="binary", threshold=threshold).to(dev)
+    rec  = Recall(task="binary", threshold=threshold).to(dev)
+    f1   = F1Score(task="binary", threshold=threshold).to(dev)
 
-    bces, mses, overlaps, jaccs = [], [], [], []
-    for s in range(0, N, batch_size):
-        ii = idx[s:s+batch_size]
-        xb = torch.stack([dataset[i][0] for i in ii], dim=0).to(device)   # [B,4,20,20]
-        target = xb[:, :1]                                                # [B,1,20,20] (your recon target)
-        mu, _ = ccvae_model.encode(xb)
-        recon = ccvae_model.decode(mu)                                    # [B,1,20,20]
+    mse  = MeanSquaredError().to(dev)
+    mae  = MeanAbsoluteError().to(dev)
+    r2   = R2Score().to(dev)
+    mape = MeanAbsolutePercentageError().to(dev)
 
-        # BCE/MSE (mean over pixels & batch)
-        bces.append(F.binary_cross_entropy(recon, target, reduction='mean').item())
-        mses.append(F.mse_loss(recon, target, reduction='mean').item())
+    N = min(max_samples, len(dataset))
 
-        # Top-k selection overlap/Jaccard
-        B = recon.shape[0]
-        r_flat = recon.view(B, -1)              # [B,400]
-        t_flat = target.view(B, -1)
-        r_idx = torch.topk(r_flat, topk, dim=1).indices.cpu().numpy()
-        t_idx = torch.topk(t_flat, topk, dim=1).indices.cpu().numpy()
-        for bi in range(B):
-            R = set(r_idx[bi].tolist()); T = set(t_idx[bi].tolist())
-            inter = len(R & T); uni = len(R | T)
-            overlaps.append(inter / float(topk))            # fraction of correctly recovered top-k
-            jaccs.append(inter / float(max(1, uni)))        # Jaccard on top-k selections
+    n = 0
+    for i in range(len(dataset)):
+        x, r = dataset[i]              # x: [C,20,20], r: scalar or [1]
+        xb = x.unsqueeze(0).to(dev)    # [1,C,20,20]
+        rb = r.view(1).to(dev)         # [1]
 
-    out = dict(
-        bce=float(np.mean(bces)),
-        mse=float(np.mean(mses)),
-        topk_overlap=float(np.mean(overlaps)),
-        topk_jaccard=float(np.mean(jaccs)),
-        n=int(N),
-    )
-    save_path = f"experiments/homo_2/train_stats/{ccvae_model.name}/rec_metrics_{ccvae_model._params_tag()}.json"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    payload = {
-        "metrics": out,
+        recon, r_pred = ccvae_model(xb, rb)   # recon: [1,1,20,20]; r_pred: [1] or [1,1]
+        r_pred = r_pred.view(1)
+
+        # target mask = first channel of x
+        target = xb[:, :1, :, :]                 # [1,1,20,20]
+        target_mask = target.squeeze(1)          # [1,20,20]; assume binary (or threshold inside metrics)
+
+
+
+        # build binary mask of top-k cells from recon
+        flat = recon.view(-1)                    # [400]
+        idx  = torch.topk(flat, topk, dim=0).indices
+        rows = idx // 20
+        cols = idx % 20
+        pred_mask = torch.zeros((1, 20, 20), device=dev, dtype=recon.dtype)
+        pred_mask[0, rows, cols] = 1.0
+
+        # ---- binary map metrics ----
+        acc.update(pred_mask, target_mask)
+        prec.update(pred_mask, target_mask)
+        rec.update(pred_mask, target_mask)
+        f1.update(pred_mask, target_mask)
+
+        # ---- regression metrics on scalar score ----
+        mse.update(r_pred, rb)
+        mae.update(r_pred, rb)
+        r2.update(r_pred, rb)
+        # clamp to avoid div by 0 in MAPE
+        mape.update(r_pred, torch.clamp(rb, min=1e-8))
+
+        n += 1
+        if n >= N:
+            break
+
+    # ---- finalize numbers ----
+    out = {
+        "accuracy":      float(acc.compute().cpu()),
+        "precision":     float(prec.compute().cpu()),
+        "recall":        float(rec.compute().cpu()),
+        "f1":            float(f1.compute().cpu()),
+        "mse":           float(mse.compute().cpu()),
+        "mae":           float(mae.compute().cpu()),
+        "r2":            float(r2.compute().cpu()),
+        "mape":          float(mape.compute().cpu()),
     }
+
+    # ---- save JSON exactly as requested ----
+    base = f"experiments/homo_2/train_stats/{ccvae_model.name}/"
+    tag = ccvae_model._params_tag() if hasattr(ccvae_model, "_params_tag") else "no_params"
+    save_path = os.path.join(base, f"rec_metrics_{tag}.json")
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     with open(save_path, "w") as f:
-        json.dump(payload, f, indent=2)
-    return out
+        json.dump({"metrics": out}, f, indent=2)
+    return out, save_path
+
 
 # ====== your fitness function (batched) ======
 def fitness_fn(x_hat: torch.Tensor, n_sims: int = 50) -> torch.Tensor:

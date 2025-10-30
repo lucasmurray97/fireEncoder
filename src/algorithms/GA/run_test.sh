@@ -9,9 +9,9 @@ ITERS=20
 # STEPS=(2 3)                    # inner mutation steps
 # TRUST_R=("" 3 5)                 # trust region radius
 # ETA_MUT=(0.5 0.9 1.2)           # mutation LR
-ALPHA=(0.5 0.1 0.8)
+ALPHA=(0.1 0.8)
 MUT_RATE=(0.5 0.2 0.8) 
-V=("v1" "v2")
+V=("v2")
 
 # for lr in "${LRS[@]}"; do
   # for ep in "${EPOCHS[@]}"; do
